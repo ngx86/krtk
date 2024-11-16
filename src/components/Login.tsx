@@ -19,13 +19,11 @@ export function Login() {
         appearance={{ theme: ThemeSupa }}
         providers={['github', 'google']}
         redirectTo={`${window.location.origin}/dashboard`}
-        magicLink={true}
-        onError={(error) => {
+        magicLink
+        onAuthError={(error) => {
           console.error('Auth error:', error)
           setError(error.message)
         }}
-        view="sign_in"
-        theme="default"
       />
     </div>
   )

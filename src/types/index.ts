@@ -9,12 +9,16 @@ export interface Notification {
 
 export interface FeedbackRequest {
   id: number;
+  menteeId: string;
+  mentorId?: string;
   description: string;
-  status: 'pending' | 'completed';
   link: string;
-  feedback?: string;
+  status: 'pending' | 'accepted' | 'completed' | 'declined';
+  urgency: 'low' | 'medium' | 'high';
+  creditsCost: number;
   createdAt: string;
-  mentorId?: number;
+  updatedAt: string;
+  feedback?: string;
 }
 
 // Add to existing types

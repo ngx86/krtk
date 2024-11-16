@@ -50,9 +50,14 @@ const MOCK_MODE = true; // Set to false when ready to use Supabase
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const [credits, setCredits] = useState(0);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [feedbackRequests, setFeedbackRequests] = useState<FeedbackRequest[]>([]);
+  const initialState = {
+    credits: 0,
+    notifications: [] as Notification[],
+    feedbackRequests: [] as FeedbackRequest[]
+  };
+  const [credits, setCredits] = useState(initialState.credits);
+  const [notifications, setNotifications] = useState(initialState.notifications);
+  const [feedbackRequests, setFeedbackRequests] = useState(initialState.feedbackRequests);
 
   // Fetch initial data
   useEffect(() => {

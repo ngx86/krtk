@@ -21,6 +21,7 @@ import { AppProvider } from './contexts/AppContext';
 import { supabase } from './lib/supabaseClient'
 import { Login } from './components/Login'
 import { Session } from '@supabase/supabase-js'
+import { Auth } from '@supabase/auth-ui-react';
 
 function App() {
   const [role, setRole] = useState<'mentee' | 'mentor'>('mentee');
@@ -85,6 +86,7 @@ function App() {
           <main className="lg:pl-64 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <Breadcrumbs />
             <Routes>
+              <Route path="/auth/callback" element={<Auth.CallbackPage />} />
               {/* Dashboard Routes */}
               <Route path="/" element={role === 'mentee' ? <MenteeDashboard /> : <MentorDashboard />} />
               <Route path="/dashboard" element={<Navigate to="/" replace />} />

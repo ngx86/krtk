@@ -1,4 +1,4 @@
-
+g
 # Micro-Mentorship Platform - App Flow Document
 
 ## User Flows
@@ -8,7 +8,7 @@
    - User signs up or logs in using email and password.
    - Upon successful login, the user is redirected to their dashboard.
 
-2. **Dashboard**:
+2. **Dashboard**:  
    - Displays:
      - Remaining credits.
      - Feedback request history.

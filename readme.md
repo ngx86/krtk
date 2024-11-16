@@ -1,11 +1,26 @@
+# Micro-Mentorship Platform
 
-## Next Steps: Integrating Credits, Feedback, and Notifications
+A platform connecting designers with experienced mentors for quick, actionable feedback.
 
-This section outlines the steps to integrate logic for credits, feedback, and notifications into the micro-mentorship app, ensuring a seamless connection between components.
+## Setup Instructions
 
----
+### Prerequisites
+- Node.js (v18 or higher)
+- npm (v9 or higher)
+- Git
 
-### 1. Credits System
+### Installation
+
+1. Clone the repository:
+```bash
+git clone [repository-url]
+cd micro-mentorship
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
 
 #### Overview
 The credits system should handle:

@@ -66,7 +66,7 @@ function App() {
                 isOpen={sidebarOpen}
                 onClose={() => setSidebarOpen(false)}
               />
-              <main className="flex-1 p-8">
+              <main className="flex-1 p-8 lg:ml-64">
                 <Breadcrumbs />
                 <Routes>
                   <Route path="/" element={role === 'mentee' ? <MenteeDashboard /> : <MentorDashboard />} />

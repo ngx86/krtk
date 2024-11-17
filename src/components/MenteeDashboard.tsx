@@ -10,9 +10,9 @@ export function MenteeDashboard() {
     .filter(request => statusFilter === 'all' || request.status === statusFilter)
     .sort((a, b) => {
       if (sortBy === 'date') {
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime();
       }
-      return a.status.localeCompare(b.status);
+      return (a.status || '').localeCompare(b.status || '');
     });
 
   return (

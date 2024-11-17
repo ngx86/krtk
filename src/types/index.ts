@@ -46,6 +46,7 @@ export interface FeedbackSession {
   creditsCost: number;
   urgency: UrgencyLevel;
   deadline: string;
+  feedback?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -226,6 +227,7 @@ export const mockDataStore = {
     const session = this.feedbackSessions.find(s => s.id === sessionId);
     if (session) {
       session.status = 'completed';
+      session.feedback = feedback;
       session.updatedAt = new Date().toISOString();
 
       // Add to mentor's earnings

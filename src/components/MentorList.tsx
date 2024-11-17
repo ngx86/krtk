@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { mockMentors } from '../types';
 
 interface MentorListProps {
@@ -12,7 +12,6 @@ export function MentorList({ onSelectMentor }: MentorListProps) {
     language: '',
     minRating: 0,
   });
-  const navigate = useNavigate();
 
   const handleMentorClick = (e: React.MouseEvent, mentorId: number) => {
     const target = e.target as HTMLElement;

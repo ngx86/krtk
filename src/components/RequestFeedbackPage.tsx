@@ -8,21 +8,19 @@ export function RequestFeedbackPage() {
   const selectedMentorId = searchParams.get('mentor');
   const { createFeedbackRequest, user } = useApp();
 
-  const handleSubmit = async (data: {
-    designLink: string;
-    description: string;
-    mentorId?: number;
-    isPublic: boolean;
-  }) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
     try {
       await createFeedbackRequest({
         menteeId: user?.id || '',
-        mentorId: data.mentorId?.toString(),
-        description: data.description,
-        link: data.designLink,
+        description: formData.get('description') as string,
+        link: formData.get('designLink') as string,
         status: 'pending',
         urgency: 'low',
-        creditsCost: 3
+        creditsCost: 3,
+        isPublic: formData.get('isPublic') === 'true'
       });
       navigate('/');
     } catch (error) {
@@ -32,10 +30,12 @@ export function RequestFeedbackPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <FeedbackRequest
-        selectedMentorId={selectedMentorId ? Number(selectedMentorId) : undefined}
-        creditCost={3}
-      />
+      <form onSubmit={handleSubmit}>
+        <FeedbackRequest
+          selectedMentorId={selectedMentorId ? Number(selectedMentorId) : undefined}
+          creditCost={3}
+        />
+      </form>
     </div>
   );
 } 

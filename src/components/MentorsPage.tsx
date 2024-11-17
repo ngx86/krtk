@@ -4,7 +4,7 @@ import { MentorList } from './MentorList';
 export function MentorsPage() {
   const navigate = useNavigate();
 
-  const handleSelectMentor = (mentorId: number) => {
+  const handleSelectMentor = (mentorId: string) => {
     navigate(`/request-feedback?mentor=${mentorId}`);
   };
 

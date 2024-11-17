@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { mockNotifications } from '../types';
 import { Link } from 'react-router-dom';
+import { useApp } from '../contexts/AppContext';
 
 interface HeaderProps {
   role: 'mentee' | 'mentor';
@@ -15,7 +15,8 @@ export function Header({ role, credits, setRole, onMenuClick }: HeaderProps) {
   const notificationsRef = useRef<HTMLDivElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   
-  const unreadNotifications = mockNotifications.filter(n => !n.read).length;
+  const { notifications } = useApp();
+  const unreadNotifications = notifications.filter((n: { read: boolean }) => !n.read).length;
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -75,8 +76,8 @@ export function Header({ role, credits, setRole, onMenuClick }: HeaderProps) {
                   <div className="px-4 py-2 border-b border-gray-100">
                     <h3 className="text-sm font-semibold">Notifications</h3>
                   </div>
-                  {mockNotifications.slice(0, 5).map((notification, index) => (
-                    <div key={index} className="px-4 py-3 hover:bg-gray-50">
+                  {notifications.slice(0, 5).map((notification) => (
+                    <div key={notification.id} className="px-4 py-3 hover:bg-gray-50">
                       <p className="text-sm">{notification.message}</p>
                     </div>
                   ))}

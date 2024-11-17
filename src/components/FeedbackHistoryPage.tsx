@@ -1,6 +1,8 @@
-import { mockFeedbackRequests } from '../types';
+import { useApp } from '../contexts/AppContext';
 
 export function FeedbackHistoryPage() {
+  const { feedbackRequests } = useApp();
+  
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
@@ -22,7 +24,7 @@ export function FeedbackHistoryPage() {
 
       <div className="bg-white rounded-lg shadow">
         <div className="divide-y">
-          {mockFeedbackRequests.map((request) => (
+          {feedbackRequests.map((request) => (
             <div key={request.id} className="p-6">
               <div className="flex justify-between items-start">
                 <div>

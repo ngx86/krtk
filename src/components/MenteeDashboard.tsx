@@ -1,19 +1,23 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { mockFeedbackRequests } from '../types';
+import { useApp } from '../contexts/AppContext';
 
 export function MenteeDashboard() {
+  const { feedbackRequests, credits } = useApp();
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed'>('all');
   const [sortBy, setSortBy] = useState<'date' | 'status'>('date');
 
-  const filteredRequests = mockFeedbackRequests
+  const filteredRequests = feedbackRequests
     .filter(request => statusFilter === 'all' || request.status === statusFilter)
     .sort((a, b) => {
       if (sortBy === 'date') {
-        return new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime();
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
-      return (a.status || '').localeCompare(b.status || '');
+      return a.status.localeCompare(b.status);
     });
+
+  const pendingRequests = feedbackRequests.filter(r => r.status === 'pending');
+  const completedRequests = feedbackRequests.filter(r => r.status === 'completed');
 
   return (
     <div className="space-y-8">
@@ -21,19 +25,15 @@ export function MenteeDashboard() {
       <div className="grid grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Available Credits</h3>
-          <p className="text-2xl font-bold text-blue-600">10</p>
+          <p className="text-2xl font-bold text-blue-600">{credits}</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Active Requests</h3>
-          <p className="text-2xl font-bold text-gray-900">
-            {mockFeedbackRequests.filter(r => r.status === 'pending').length}
-          </p>
+          <p className="text-2xl font-bold text-gray-900">{pendingRequests.length}</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Completed Reviews</h3>
-          <p className="text-2xl font-bold text-gray-900">
-            {mockFeedbackRequests.filter(r => r.status === 'completed').length}
-          </p>
+          <p className="text-2xl font-bold text-gray-900">{completedRequests.length}</p>
         </div>
       </div>
 

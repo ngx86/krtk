@@ -15,6 +15,7 @@ export function RequestFeedbackPage() {
     try {
       await createFeedbackRequest({
         menteeId: user?.id || '',
+        mentorId: selectedMentorId || undefined,
         description: formData.get('description') as string,
         link: formData.get('designLink') as string,
         status: 'pending',

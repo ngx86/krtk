@@ -6,9 +6,11 @@ export function AuthCallback() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        try {
+    const handleAuthChange = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (session?.user) {
           // Check if user profile exists
           const { data: profile } = await supabase
             .from('users')
@@ -26,25 +28,27 @@ export function AuthCallback() {
                   email: session.user.email,
                   role: 'mentee',
                   credits: 5,
-                  created_at: new Date().toISOString()
                 }
               ])
 
-            if (insertError) throw insertError
+            if (insertError) {
+              console.error('Error creating profile:', insertError)
+              return
+            }
           }
 
           // Redirect to dashboard
-          navigate('/')
-        } catch (error) {
-          console.error('Error in auth callback:', error)
-          // Handle error appropriately
+          navigate('/', { replace: true })
+        } else {
+          navigate('/login', { replace: true })
         }
+      } catch (error) {
+        console.error('Error in auth callback:', error)
+        navigate('/login', { replace: true })
       }
-    })
-
-    return () => {
-      authListener?.subscription.unsubscribe()
     }
+
+    handleAuthChange()
   }, [navigate])
 
   return (

@@ -9,11 +9,19 @@ export function Login() {
       <Auth
         supabaseClient={supabase}
         appearance={{ theme: ThemeSupa }}
-        providers={['github', 'google']}
+        providers={[]}
         redirectTo={`${window.location.origin}/auth/callback`}
-        showLinks={false}
+        magicLink={false}
+        showLinks={true}
         view="sign_in"
-        theme="default"
+        localization={{
+          variables: {
+            sign_in: {
+              email_label: 'Email',
+              password_label: 'Password',
+            }
+          }
+        }}
       />
     </div>
   )

@@ -11,6 +11,7 @@ export function Login() {
         appearance={{ theme: ThemeSupa }}
         providers={['github', 'google']}
         redirectTo={`${window.location.origin}/auth/callback`}
+        showLinks={false}
         view="sign_in"
         theme="default"
       />

@@ -21,6 +21,7 @@ import { supabase } from './lib/supabaseClient'
 import { Login } from './components/Login'
 import { Session } from '@supabase/supabase-js'
 import { AuthCallback } from './components/AuthCallback';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
   const [role, setRole] = useState<'mentee' | 'mentor'>('mentee');
@@ -68,52 +69,54 @@ function App() {
   }, []);
 
   return (
-    <AppProvider>
-      <Router>
-        <div className="min-h-screen bg-gray-50">
-          <Header 
-            role={role} 
-            credits={0}
-            setRole={setRole}
-            onMenuClick={() => setSidebarOpen(true)}
-          />
-          <Sidebar
-            role={role}
-            isOpen={sidebarOpen}
-            onClose={() => setSidebarOpen(false)}
-          />
-          <main className="lg:pl-64 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <Breadcrumbs />
-            <Routes>
-              <Route path="/auth/callback" element={<AuthCallback />} />
-              {/* Dashboard Routes */}
-              <Route path="/" element={role === 'mentee' ? <MenteeDashboard /> : <MentorDashboard />} />
-              <Route path="/dashboard" element={<Navigate to="/" replace />} />
-              
-              {/* Mentor Routes */}
-              <Route path="/mentors" element={<MentorsPage />} />
-              <Route path="/mentor/:mentorId" element={<MentorProfilePage />} />
-              <Route path="/mentor/:mentorId/reviews" element={<ReviewsPage />} />
-              
-              {/* Feedback Routes */}
-              <Route path="/request-feedback" element={<RequestFeedbackPage />} />
-              <Route path="/feedback-history" element={<FeedbackHistoryPage />} />
-              
-              {/* Notification Routes */}
-              <Route path="/notifications" element={<NotificationsPage />} />
-              
-              {/* Finance Routes */}
-              <Route path="/earnings" element={<EarningsPage />} />
-              <Route path="/credits" element={<CreditsPage />} />
-              
-              {/* Profile Routes */}
-              <Route path="/ratings" element={<RatingsPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-            </Routes>
-          </main>
-        </div>
-      </Router>
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <Router>
+          <div className="min-h-screen bg-gray-50">
+            <Header 
+              role={role} 
+              credits={0}
+              setRole={setRole}
+              onMenuClick={() => setSidebarOpen(true)}
+            />
+            <Sidebar
+              role={role}
+              isOpen={sidebarOpen}
+              onClose={() => setSidebarOpen(false)}
+            />
+            <main className="lg:pl-64 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <Breadcrumbs />
+              <Routes>
+                <Route path="/auth/callback" element={<AuthCallback />} />
+                {/* Dashboard Routes */}
+                <Route path="/" element={role === 'mentee' ? <MenteeDashboard /> : <MentorDashboard />} />
+                <Route path="/dashboard" element={<Navigate to="/" replace />} />
+                
+                {/* Mentor Routes */}
+                <Route path="/mentors" element={<MentorsPage />} />
+                <Route path="/mentor/:mentorId" element={<MentorProfilePage />} />
+                <Route path="/mentor/:mentorId/reviews" element={<ReviewsPage />} />
+                
+                {/* Feedback Routes */}
+                <Route path="/request-feedback" element={<RequestFeedbackPage />} />
+                <Route path="/feedback-history" element={<FeedbackHistoryPage />} />
+                
+                {/* Notification Routes */}
+                <Route path="/notifications" element={<NotificationsPage />} />
+                
+                {/* Finance Routes */}
+                <Route path="/earnings" element={<EarningsPage />} />
+                <Route path="/credits" element={<CreditsPage />} />
+                
+                {/* Profile Routes */}
+                <Route path="/ratings" element={<RatingsPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+              </Routes>
+            </main>
+          </div>
+        </Router>
+      </AppProvider>
+    </ErrorBoundary>
   );
 }
 

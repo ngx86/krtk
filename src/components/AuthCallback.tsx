@@ -6,40 +6,46 @@ export function AuthCallback() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    supabase.auth.onAuthStateChange((event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        // Create user profile in database if it doesn't exist
-        createUserProfile(session.user.id)
-        // Redirect to dashboard
-        navigate('/')
+        try {
+          // Check if user profile exists
+          const { data: profile } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', session.user.id)
+            .single()
+
+          if (!profile) {
+            // Create new user profile
+            const { error: insertError } = await supabase
+              .from('users')
+              .insert([
+                {
+                  id: session.user.id,
+                  email: session.user.email,
+                  role: 'mentee',
+                  credits: 5,
+                  created_at: new Date().toISOString()
+                }
+              ])
+
+            if (insertError) throw insertError
+          }
+
+          // Redirect to dashboard
+          navigate('/')
+        } catch (error) {
+          console.error('Error in auth callback:', error)
+          // Handle error appropriately
+        }
       }
     })
-  }, [navigate])
 
-  async function createUserProfile(userId: string) {
-    // Check if user profile exists
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select()
-      .eq('id', userId)
-      .single()
-
-    if (!existingUser) {
-      // Create new user profile
-      const { error } = await supabase
-        .from('users')
-        .insert([
-          {
-            id: userId,
-            role: 'mentee', // Default role
-            credits: 5, // Starting credits
-            created_at: new Date().toISOString()
-          }
-        ])
-
-      if (error) console.error('Error creating user profile:', error)
+    return () => {
+      authListener?.subscription.unsubscribe()
     }
-  }
+  }, [navigate])
 
   return (
     <div className="flex items-center justify-center min-h-screen">

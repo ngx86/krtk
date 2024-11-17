@@ -1,5 +1,4 @@
 import { useApp } from '../contexts/AppContext';
-import { mockMentee } from '../types';
 
 export function CreditsPage() {
   const { credits } = useApp();

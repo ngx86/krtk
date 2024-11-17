@@ -6,7 +6,7 @@ export function RequestFeedbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const selectedMentorId = searchParams.get('mentor');
-  const { createFeedbackRequest } = useApp();
+  const { createFeedbackRequest, user } = useApp();
 
   const handleSubmit = async (data: {
     designLink: string;
@@ -16,10 +16,13 @@ export function RequestFeedbackPage() {
   }) => {
     try {
       await createFeedbackRequest({
+        menteeId: user?.id || '',
         mentorId: data.mentorId?.toString(),
         description: data.description,
         link: data.designLink,
-        status: 'pending'
+        status: 'pending',
+        urgency: 'low',
+        creditsCost: 3
       });
       navigate('/');
     } catch (error) {

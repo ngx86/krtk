@@ -125,7 +125,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }, payload => {
         if (payload.eventType === 'UPDATE') {
           setFeedbackRequests(prev => 
-            prev.map(req => req.id === payload.new.id ? payload.new : req)
+            prev.map(req => req.id === (payload.new as FeedbackRequest).id ? 
+              payload.new as FeedbackRequest : 
+              req
+            )
           );
         }
       })

@@ -15,7 +15,7 @@ export function FeedbackRequest({ selectedMentorId, creditCost }: FeedbackReques
     description: '',
     background: '',
     deadline: '',
-    urgency: 'normal',
+    urgency: 'low',
     isPublic: !selectedMentorId,
     preferredLanguages: [],
     expertise: []
@@ -54,6 +54,11 @@ export function FeedbackRequest({ selectedMentorId, creditCost }: FeedbackReques
     });
   };
 
+  const calculateCost = () => {
+    const baseCost = 3;
+    return formData.urgency === 'high' ? baseCost * 1.5 : baseCost;
+  };
+
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex justify-between items-start mb-6">
@@ -68,7 +73,7 @@ export function FeedbackRequest({ selectedMentorId, creditCost }: FeedbackReques
         <div className="flex items-center space-x-2">
           <span className="text-sm text-gray-600">Cost:</span>
           <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full font-medium">
-            {creditCost} Credits
+            {calculateCost()} Credits
           </span>
         </div>
       </div>
@@ -207,11 +212,12 @@ export function FeedbackRequest({ selectedMentorId, creditCost }: FeedbackReques
             </label>
             <select
               value={formData.urgency}
-              onChange={(e) => setFormData({ ...formData, urgency: e.target.value as 'normal' | 'urgent' })}
+              onChange={(e) => setFormData(prev => ({ ...prev, urgency: e.target.value as UrgencyLevel }))}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             >
-              <option value="normal">Normal</option>
-              <option value="urgent">Urgent (Higher Credit Cost)</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
             </select>
           </div>
         </div>
@@ -236,11 +242,11 @@ export function FeedbackRequest({ selectedMentorId, creditCost }: FeedbackReques
             <div>
               <p className="text-sm font-medium text-gray-700">Credit Cost</p>
               <p className="text-xs text-gray-500">
-                {formData.urgency === 'urgent' ? 'Urgent requests cost more credits' : 'Standard request'}
+                {formData.urgency === 'high' ? 'High urgency requests cost more credits' : 'Standard request'}
               </p>
             </div>
             <span className="text-lg font-bold text-blue-600">
-              {formData.urgency === 'urgent' ? creditCost * 1.5 : creditCost} Credits
+              {calculateCost()} Credits
             </span>
           </div>
         </div>
@@ -249,7 +255,7 @@ export function FeedbackRequest({ selectedMentorId, creditCost }: FeedbackReques
           type="submit"
           className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
         >
-          Submit Request ({formData.urgency === 'urgent' ? creditCost * 1.5 : creditCost} Credits)
+          Submit Request ({calculateCost()} Credits)
         </button>
       </form>
     </div>

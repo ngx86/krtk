@@ -96,18 +96,18 @@ export function MenteeDashboard() {
                         View Design
                       </a>
                       <span className="text-sm text-gray-500">
-                        Submitted on {new Date(request.createdAt).toLocaleDateString()}
+                        Submitted on {request.createdAt && new Date(request.createdAt).toLocaleDateString()}
                       </span>
                     </div>
                   </div>
                   <span
                     className={`px-2 py-1 text-sm rounded-full ${
-                      request.status === 'completed'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-yellow-100 text-yellow-800'
+                      request.status && request.status === 'pending'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-green-100 text-green-800'
                     }`}
                   >
-                    {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                    {request.status && request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                   </span>
                 </div>
                 {request.feedback && (

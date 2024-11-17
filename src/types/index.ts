@@ -176,10 +176,10 @@ export const mockDataStore = {
     const session: FeedbackSession = {
       id: this.feedbackSessions.length + 1,
       menteeId: data.menteeId,
-      mentorId: data.mentorId || 0, // 0 means open request
+      mentorId: data.mentorId || 0,
       requestId: mockFeedbackRequests.length + 1,
       status: 'pending',
-      creditsCost: data.urgency === 'urgent' ? data.creditsCost * 1.5 : data.creditsCost,
+      creditsCost: data.urgency === 'high' ? data.creditsCost * 1.5 : data.creditsCost,
       urgency: data.urgency,
       deadline: data.deadline,
       createdAt: new Date().toISOString(),

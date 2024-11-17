@@ -1,0 +1,59 @@
+serviceWorker.js:1 Uncaught (in promise) Error: Frame with ID 0 was removed.
+serviceWorker.js:1 Uncaught (in promise) Error: Frame with ID 0 was removed.
+serviceWorker.js:1 Uncaught (in promise) Error: Frame with ID 0 was removed.
+serviceWorker.js:1 Uncaught (in promise) Error: Frame with ID 0 was removed.
+serviceWorker.js:1 Uncaught (in promise) Error: Frame with ID 0 was removed.
+serviceWorker.js:1 Uncaught (in promise) Error: No tab with id: 1974000058
+serviceWorker.js:1 Uncaught (in promise) Error: No tab with id: 1974000058
+serviceWorker.js:1 Uncaught (in promise) Error: No tab with id: 1974000058
+serviceWorker.js:1 Uncaught (in promise) Error: No tab with id: 1974000058
+serviceWorker.js:1 Uncaught (in promise) Error: No tab with id: 1974000058
+background.js:2 Uncaught (in promise) Error: No tab with id: 1974000050.
+background.js:2 Uncaught (in promise) Error: No tab with id: 1974000050.
+serviceWorker.js:1 Uncaught (in promise) Error: Cannot access contents of the page. Extension manifest must request permission to access the respective host.
+serviceWorker.js:1 Uncaught (in promise) Error: Cannot access contents of the page. Extension manifest must request permission to access the respective host.
+serviceWorker.js:1 Uncaught (in promise) Error: Cannot access contents of the page. Extension manifest must request permission to access the respective host.
+serviceWorker.js:1 Uncaught (in promise) Error: Cannot access contents of the page. Extension manifest must request permission to access the respective host.
+serviceWorker.js:1 Uncaught (in promise) Error: Cannot access contents of the page. Extension manifest must request permission to access the respective host.
+serviceWorker.js:1 Uncaught (in promise) Error: Frame with ID 0 was removed.
+serviceWorker.js:1 Uncaught (in promise) Error: Frame with ID 0 was removed.
+serviceWorker.js:1 Uncaught (in promise) Error: Frame with ID 0 was removed.
+serviceWorker.js:1 Uncaught (in promise) Error: Frame with ID 0 was removed.
+serviceWorker.js:1 Uncaught (in promise) Error: Frame with ID 0 was removed.
+background.js:2 Uncaught (in promise) Error: No tab with id: 1974000066.
+serviceWorker.js:1 Uncaught (in promise) Error: Frame with ID 0 was removed.
+serviceWorker.js:1 Uncaught (in promise) Error: Frame with ID 0 was removed.
+serviceWorker.js:1 Uncaught (in promise) Error: Frame with ID 0 was removed.
+serviceWorker.js:1 Uncaught (in promise) Error: Frame with ID 0 was removed.
+serviceWorker.js:1 Uncaught (in promise) Error: Frame with ID 0 was removed.
+inpage.js:1 MetaMask: 'ethereum.selectedAddress' is deprecated and may be removed in the future. Please use the 'eth_accounts' RPC method instead.
+For more information, see: https://github.com/MetaMask/metamask-improvement-proposals/discussions/23
+get selectedAddress @ inpage.js:1
+lockdown-install.js:1 Removing unpermitted intrinsics
+index-CMOWwxja.js:40 Error: Minified React error #310; visit https://reactjs.org/docs/error-decoder.html?invariant=310 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at Qe (index-CMOWwxja.js:38:17543)
+    at Ms (index-CMOWwxja.js:38:20475)
+    at Object.Ea [as useEffect] (index-CMOWwxja.js:38:20732)
+    at A.useEffect (index-CMOWwxja.js:9:5855)
+    at r2 (index-CMOWwxja.js:75:177249)
+    at ba (index-CMOWwxja.js:38:16952)
+    at wo (index-CMOWwxja.js:40:3134)
+    at Vh (index-CMOWwxja.js:40:44581)
+    at Fh (index-CMOWwxja.js:40:39592)
+    at X0 (index-CMOWwxja.js:40:39520)
+yo @ index-CMOWwxja.js:40
+index-CMOWwxja.js:40 Uncaught Error: Minified React error #310; visit https://reactjs.org/docs/error-decoder.html?invariant=310 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at Qe (index-CMOWwxja.js:38:17543)
+    at Ms (index-CMOWwxja.js:38:20475)
+    at Object.Ea [as useEffect] (index-CMOWwxja.js:38:20732)
+    at A.useEffect (index-CMOWwxja.js:9:5855)
+    at r2 (index-CMOWwxja.js:75:177249)
+    at ba (index-CMOWwxja.js:38:16952)
+    at wo (index-CMOWwxja.js:40:3134)
+    at Vh (index-CMOWwxja.js:40:44581)
+    at Fh (index-CMOWwxja.js:40:39592)
+    at X0 (index-CMOWwxja.js:40:39520)
+inpage.js:1 MetaMask: 'ethereum.selectedAddress' is deprecated and may be removed in the future. Please use the 'eth_accounts' RPC method instead.
+For more information, see: https://github.com/MetaMask/metamask-improvement-proposals/discussions/23
+get selectedAddress @ inpage.js:1
+lockdown-install.js:1 Removing unpermitted intrinsics

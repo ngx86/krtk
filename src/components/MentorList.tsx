@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 
 interface Mentor {
@@ -52,6 +51,20 @@ export function MentorList({ onSelectMentor }: MentorListProps) {
     }
   }
 
+  // Get unique expertise and languages from all mentors
+  const allExpertise = Array.from(new Set(mentors.flatMap(m => m.expertise || [])));
+  const allLanguages = Array.from(new Set(mentors.flatMap(m => m.languages || [])));
+
+  // Filter mentors based on criteria
+  const filteredMentors = mentors.filter(mentor => {
+    const matchesExpertise = !filters.expertise || 
+      mentor.expertise?.includes(filters.expertise);
+    const matchesLanguage = !filters.language || 
+      mentor.languages?.includes(filters.language);
+    const matchesRating = mentor.rating >= filters.minRating;
+    return matchesExpertise && matchesLanguage && matchesRating;
+  });
+
   if (loading) {
     return <div className="flex justify-center p-8">Loading mentors...</div>;
   }
@@ -84,9 +97,9 @@ export function MentorList({ onSelectMentor }: MentorListProps) {
             onChange={(e) => setFilters({ ...filters, expertise: e.target.value })}
           >
             <option value="">All Skills</option>
-            <option value="ui">UI Design</option>
-            <option value="typography">Typography</option>
-            <option value="branding">Branding</option>
+            {allExpertise.map(skill => (
+              <option key={skill} value={skill}>{skill}</option>
+            ))}
           </select>
         </div>
         <div>
@@ -99,9 +112,9 @@ export function MentorList({ onSelectMentor }: MentorListProps) {
             onChange={(e) => setFilters({ ...filters, language: e.target.value })}
           >
             <option value="">Any Language</option>
-            <option value="english">English</option>
-            <option value="spanish">Spanish</option>
-            <option value="mandarin">Mandarin</option>
+            {allLanguages.map(lang => (
+              <option key={lang} value={lang}>{lang}</option>
+            ))}
           </select>
         </div>
         <div>
@@ -123,15 +136,14 @@ export function MentorList({ onSelectMentor }: MentorListProps) {
 
       {/* Mentor List */}
       <div className="space-y-6">
-        {mentors.length === 0 ? (
+        {filteredMentors.length === 0 ? (
           <p className="text-center text-gray-500 py-8">
             No mentors found matching your criteria
           </p>
         ) : (
-          mentors.map((mentor) => (
-            <Link
+          filteredMentors.map((mentor) => (
+            <div
               key={mentor.id}
-              to={`/mentor/${mentor.id}`}
               className="block border rounded-lg p-6 hover:border-blue-500 transition-colors"
             >
               <div className="flex items-start space-x-4">
@@ -165,7 +177,7 @@ export function MentorList({ onSelectMentor }: MentorListProps) {
                   <div className="mt-3">
                     <h4 className="text-sm font-medium text-gray-700">Expertise</h4>
                     <div className="mt-1 flex flex-wrap gap-2">
-                      {mentor.expertise?.map((skill) => (
+                      {mentor.expertise?.filter(Boolean).map((skill) => (
                         <span
                           key={skill}
                           className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
@@ -175,25 +187,14 @@ export function MentorList({ onSelectMentor }: MentorListProps) {
                       ))}
                     </div>
                   </div>
-                  <div className="mt-3 flex items-center space-x-4">
-                    {mentor.portfolio && (
-                      <a
-                        href={mentor.portfolio}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-blue-500 hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        View Portfolio
-                      </a>
-                    )}
+                  <div className="mt-3">
                     <span className="text-sm text-gray-500">
-                      Languages: {mentor.languages?.join(', ')}
+                      Languages: {mentor.languages?.filter(Boolean).join(', ')}
                     </span>
                   </div>
                 </div>
               </div>
-            </Link>
+            </div>
           ))
         )}
       </div>

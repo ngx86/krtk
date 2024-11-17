@@ -19,8 +19,7 @@ export function RequestFeedbackPage() {
         link: formData.get('designLink') as string,
         status: 'pending',
         urgency: 'low',
-        creditsCost: 3,
-        isPublic: formData.get('isPublic') === 'true'
+        creditsCost: 3
       });
       navigate('/');
     } catch (error) {

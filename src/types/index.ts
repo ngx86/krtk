@@ -19,6 +19,7 @@ export interface FeedbackRequest {
   createdAt: string;
   updatedAt: string;
   feedback?: string;
+  isPublic?: boolean;
 }
 
 // Add to existing types

@@ -31,13 +31,9 @@ export function AuthCallback() {
                 }
               ])
 
-            if (insertError) {
-              console.error('Error creating profile:', insertError)
-              return
-            }
+            if (insertError) throw insertError
           }
 
-          // Redirect to dashboard
           navigate('/', { replace: true })
         } else {
           navigate('/login', { replace: true })

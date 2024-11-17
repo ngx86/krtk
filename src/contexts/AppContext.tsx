@@ -25,7 +25,7 @@ interface Notification {
   createdAt: string;
 }
 
-interface User {
+interface AppUser {
   id: string;
   role: 'mentee' | 'mentor';
   credits: number | null;
@@ -35,7 +35,7 @@ interface AppContextType {
   credits: number;
   notifications: Notification[];
   feedbackRequests: FeedbackRequest[];
-  user: User | null;
+  user: AppUser | null;
   createFeedbackRequest: (data: Omit<FeedbackRequest, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   acceptFeedbackRequest: (requestId: number) => Promise<void>;
   completeFeedbackRequest: (requestId: number, feedback: string) => Promise<void>;
@@ -47,28 +47,52 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user: authUser } = useAuth();
+  const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [credits, setCredits] = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [feedbackRequests, setFeedbackRequests] = useState<FeedbackRequest[]>([]);
 
   // Fetch initial data
   useEffect(() => {
-    if (user) {
+    if (authUser) {
+      // Convert auth user to app user
+      const fetchUserProfile = async () => {
+        const { data } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
+          
+        if (data) {
+          setAppUser({
+            id: data.id,
+            role: data.role,
+            credits: data.credits
+          });
+        }
+      };
+      
+      fetchUserProfile();
+    }
+  }, [authUser]);
+
+  useEffect(() => {
+    if (appUser) {
       fetchUserData();
       subscribeToUpdates();
     }
-  }, [user]);
+  }, [appUser]);
 
   async function fetchUserData() {
-    if (!user) return;
+    if (!appUser) return;
 
     // Fetch credits for mentees
-    if (user.role === 'mentee') {
+    if (appUser.role === 'mentee') {
       const { data: userData } = await supabase
         .from('users')
         .select('credits')
-        .eq('id', user.id)
+        .eq('id', appUser.id)
         .single();
       if (userData) {
         setCredits(userData.credits);
@@ -79,7 +103,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { data: notificationsData } = await supabase
       .from('notifications')
       .select('*')
-      .eq('userId', user.id)
+      .eq('userId', appUser.id)
       .order('createdAt', { ascending: false });
     if (notificationsData) {
       setNotifications(notificationsData);
@@ -89,7 +113,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { data: requestsData } = await supabase
       .from('feedback_requests')
       .select('*')
-      .or(`menteeId.eq.${user.id},mentorId.eq.${user.id}`)
+      .or(`menteeId.eq.${appUser.id},mentorId.eq.${appUser.id}`)
       .order('createdAt', { ascending: false });
     if (requestsData) {
       setFeedbackRequests(requestsData);
@@ -97,7 +121,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   function subscribeToUpdates() {
-    if (!user) return;
+    if (!appUser) return;
 
     // Subscribe to notifications
     const notificationsSubscription = supabase
@@ -106,7 +130,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         event: '*',
         schema: 'public',
         table: 'notifications',
-        filter: `userId=eq.${user.id}`,
+        filter: `userId=eq.${appUser.id}`,
       }, payload => {
         if (payload.eventType === 'INSERT') {
           setNotifications(prev => [payload.new as Notification, ...prev]);
@@ -121,7 +145,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         event: '*',
         schema: 'public',
         table: 'feedback_requests',
-        filter: `menteeId=eq.${user.id}`,
+        filter: `menteeId=eq.${appUser.id}`,
       }, payload => {
         if (payload.eventType === 'UPDATE') {
           setFeedbackRequests(prev => 
@@ -142,11 +166,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Context methods
   async function createFeedbackRequest(data: Omit<FeedbackRequest, 'id' | 'createdAt' | 'updatedAt'>) {
-    if (!user) return;
+    if (!appUser) return;
 
     const { error } = await supabase.from('feedback_requests').insert([{
       ...data,
-      menteeId: user.id,
+      menteeId: appUser.id,
       status: 'pending',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -157,13 +181,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function acceptFeedbackRequest(requestId: number) {
-    if (!user) return;
+    if (!appUser) return;
 
     const { error } = await supabase
       .from('feedback_requests')
       .update({
         status: 'accepted',
-        mentorId: user.id,
+        mentorId: appUser.id,
         updatedAt: new Date().toISOString(),
       })
       .eq('id', requestId);
@@ -173,7 +197,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function completeFeedbackRequest(requestId: number, feedback: string) {
-    if (!user) return;
+    if (!appUser) return;
 
     const { error } = await supabase
       .from('feedback_requests')
@@ -189,7 +213,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function declineFeedbackRequest(requestId: number, reason: string) {
-    if (!user) return;
+    if (!appUser) return;
 
     const { error } = await supabase
       .from('feedback_requests')
@@ -205,7 +229,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function markNotificationAsRead(notificationId: number) {
-    if (!user) return;
+    if (!appUser) return;
 
     const { error } = await supabase
       .from('notifications')
@@ -217,14 +241,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function purchaseCredits(amount: number) {
-    if (!user) return;
+    if (!appUser) return;
 
     const { error } = await supabase
       .from('users')
       .update({ 
-        credits: (user.credits || 0) + amount 
+        credits: (appUser.credits || 0) + amount 
       })
-      .eq('id', user.id);
+      .eq('id', appUser.id);
 
     if (error) throw error;
     await fetchUserData();
@@ -234,7 +258,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     credits,
     notifications,
     feedbackRequests,
-    user,
+    user: appUser,
     createFeedbackRequest,
     acceptFeedbackRequest,
     completeFeedbackRequest,

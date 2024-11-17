@@ -18,12 +18,9 @@ export function Login() {
         supabaseClient={supabase}
         appearance={{ theme: ThemeSupa }}
         providers={['github', 'google']}
-        redirectTo={`${window.location.origin}/dashboard`}
-        magicLink
-        onAuthError={(error) => {
-          console.error('Auth error:', error)
-          setError(error.message)
-        }}
+        redirectTo={`${window.location.origin}/auth/callback`}
+        view="sign_in"
+        theme="default"
       />
     </div>
   )

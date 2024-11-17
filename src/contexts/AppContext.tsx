@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 
 interface FeedbackRequest {
   id: number;
@@ -9,7 +9,7 @@ interface FeedbackRequest {
   description: string;
   link: string;
   status: 'pending' | 'accepted' | 'completed' | 'declined';
-  urgency: 'normal' | 'urgent';
+  urgency: 'low' | 'medium' | 'high';
   creditsCost: number;
   feedback?: string;
   createdAt: string;
@@ -28,7 +28,7 @@ interface Notification {
 interface User {
   id: string;
   role: 'mentee' | 'mentor';
-  credits: number;
+  credits: number | null;
 }
 
 interface AppContextType {
@@ -46,27 +46,15 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const MOCK_MODE = true; // Set to false when ready to use Supabase
-
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const initialState = {
-    credits: 0,
-    notifications: [] as Notification[],
-    feedbackRequests: [] as FeedbackRequest[]
-  };
-  const [credits, setCredits] = useState(initialState.credits);
-  const [notifications, setNotifications] = useState(initialState.notifications);
-  const [feedbackRequests, setFeedbackRequests] = useState(initialState.feedbackRequests);
+  const [credits, setCredits] = useState(0);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [feedbackRequests, setFeedbackRequests] = useState<FeedbackRequest[]>([]);
 
   // Fetch initial data
   useEffect(() => {
-    if (MOCK_MODE) {
-      // Use mock data
-      setCredits(mockMentee.credits);
-      setNotifications(mockNotifications);
-      setFeedbackRequests(mockFeedbackRequests);
-    } else if (user) {
+    if (user) {
       fetchUserData();
       subscribeToUpdates();
     }
@@ -228,11 +216,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   async function purchaseCredits(amount: number) {
     if (!user) return;
 
-    // Here you would normally integrate with a payment provider
     const { error } = await supabase
       .from('users')
       .update({ 
-        credits: user.credits ? user.credits + amount : amount 
+        credits: (user.credits || 0) + amount 
       })
       .eq('id', user.id);
 

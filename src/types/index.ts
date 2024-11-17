@@ -22,7 +22,7 @@ export interface FeedbackRequest {
 }
 
 // Add to existing types
-export type UrgencyLevel = 'normal' | 'urgent';
+export type UrgencyLevel = 'low' | 'medium' | 'high';
 
 export interface FeedbackRequestFormData {
   title: string;
@@ -68,21 +68,29 @@ export const mockNotifications: Notification[] = [
   }
 ];
 
-export const mockFeedbackRequests: FeedbackRequest[] = [
+export const mockFeedbackRequests: Partial<FeedbackRequest>[] = [
   {
     id: 1,
+    menteeId: '1',
     description: 'Review my logo design',
     status: 'pending',
     link: 'https://figma.com/file/123',
-    createdAt: '2024-03-15'
+    createdAt: '2024-03-15',
+    urgency: 'low',
+    creditsCost: 1,
+    updatedAt: '2024-03-15'
   },
   {
     id: 2,
+    menteeId: '1',
     description: 'Help with my landing page layout',
     status: 'completed',
     feedback: 'Consider increasing the contrast between text and background. The hero section could be more impactful with larger typography.',
     link: 'https://figma.com/file/456',
-    createdAt: '2024-03-14'
+    createdAt: '2024-03-14',
+    urgency: 'low',
+    creditsCost: 1,
+    updatedAt: '2024-03-14'
   }
 ];
 

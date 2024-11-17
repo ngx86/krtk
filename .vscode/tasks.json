@@ -1,0 +1,20 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Deploy",
+      "type": "shell",
+      "command": "./deploy.sh",
+      "args": ["${input:commitMessage}"],
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "commitMessage",
+      "type": "promptString",
+      "description": "Commit message",
+      "default": "update deployment"
+    }
+  ]
+} 

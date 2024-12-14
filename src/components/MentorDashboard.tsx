@@ -1,10 +1,20 @@
 import { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { FeedbackRequest } from '../types';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { DollarSign, Clock, Users } from "lucide-react"
 
-interface ExpandedRequest {
-  id: number | null;
-  view: 'sidebar' | 'fullpage' | null;
+interface FeedbackRequest {
+  id: number;
+  description: string;
+  link: string;
+  status: 'pending' | 'completed' | 'accepted' | 'declined';
+  urgency: 'low' | 'medium' | 'high';
+  creditsCost: number;
+  feedback?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface RequestDetailsProps {
@@ -18,78 +28,81 @@ const RequestDetails: React.FC<RequestDetailsProps> = ({ request, onClose, onSub
   const [feedbackText, setFeedbackText] = useState('');
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl">
-      <div className="flex justify-between items-start mb-6">
-        <div>
-          <h3 className="text-xl font-bold">{request.description}</h3>
-          <div className="flex items-center mt-2 space-x-4">
-            <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-              {request.creditsCost} Credits
-            </span>
-            <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-sm">
-              {request.urgency}
-            </span>
+    <Card className="w-full max-w-2xl">
+      <CardHeader className="space-y-1">
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle>{request.description}</CardTitle>
+            <div className="flex items-center mt-2 space-x-2">
+              <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground hover:bg-primary/80">
+                {request.creditsCost} Credits
+              </span>
+              <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80">
+                {request.urgency}
+              </span>
+            </div>
           </div>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <span className="sr-only">Close</span>
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </Button>
         </div>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
+      </CardHeader>
 
-      <div className="space-y-4">
-        <div>
-          <h4 className="font-semibold text-gray-700">Request Details</h4>
-          <p className="text-gray-600 mt-1">{request.description}</p>
+      <CardContent className="space-y-6">
+        <div className="space-y-2">
+          <h4 className="font-medium">Request Details</h4>
+          <p className="text-sm text-muted-foreground">{request.description}</p>
         </div>
 
-        <div>
-          <h4 className="font-semibold text-gray-700">Design Link</h4>
+        <div className="space-y-2">
+          <h4 className="font-medium">Design Link</h4>
           <a
             href={request.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-500 hover:underline mt-1 block"
+            className="text-primary hover:underline text-sm"
           >
             View Design
           </a>
         </div>
 
-        <div className="mt-6">
-          <label className="block font-semibold text-gray-700 mb-2">
-            Your Feedback
-          </label>
-          <textarea
+        <div className="space-y-2">
+          <h4 className="font-medium">Your Feedback</h4>
+          <Textarea
             value={feedbackText}
-            onChange={(e) => setFeedbackText(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFeedbackText(e.target.value)}
             placeholder="Enter your feedback here..."
-            className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            rows={6}
+            className="min-h-[150px]"
           />
-          <div className="flex justify-end space-x-4 mt-4">
-            <button
-              onClick={() => onDecline()}
-              className="px-4 py-2 text-gray-700 hover:text-gray-900"
-            >
-              Decline Request
-            </button>
-            <button
-              onClick={() => onSubmit(feedbackText)}
-              className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-            >
-              Submit Feedback
-            </button>
-          </div>
         </div>
-      </div>
-    </div>
+
+        <div className="flex justify-end space-x-2">
+          <Button
+            variant="ghost"
+            onClick={() => onDecline()}
+          >
+            Decline Request
+          </Button>
+          <Button
+            onClick={() => onSubmit(feedbackText)}
+          >
+            Submit Feedback
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
 export function MentorDashboard(): JSX.Element {
   const { feedbackRequests, completeFeedbackRequest, declineFeedbackRequest } = useApp();
-  const [expandedRequest, setExpandedRequest] = useState<ExpandedRequest>({ id: null, view: null });
+  const [expandedRequest, setExpandedRequest] = useState<{ id: number | null; view: 'sidebar' | 'fullpage' | null }>({ 
+    id: null, 
+    view: null 
+  });
 
   const handleSubmitFeedback = async (requestId: number, feedback: string) => {
     try {
@@ -114,23 +127,38 @@ export function MentorDashboard(): JSX.Element {
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Total Feedback Given</h3>
-          <p className="text-2xl font-bold text-gray-900">{completedRequests.length}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Pending Requests</h3>
-          <p className="text-2xl font-bold text-gray-900">{pendingRequests.length}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Available Earnings</h3>
-          <p className="text-2xl font-bold text-green-600">$0</p>
-        </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Feedback Given</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{completedRequests.length}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{pendingRequests.length}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Available Earnings</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">$0</div>
+          </CardContent>
+        </Card>
       </div>
 
       {expandedRequest.id && expandedRequest.view === 'sidebar' && (
-        <div className="fixed inset-y-0 right-0 w-[600px] bg-white shadow-2xl">
+        <div className="fixed inset-y-0 right-0 w-[600px] bg-background border-l">
           <RequestDetails 
             request={feedbackRequests.find(r => r.id === expandedRequest.id)!}
             onClose={() => setExpandedRequest({ id: null, view: null })}
@@ -141,13 +169,15 @@ export function MentorDashboard(): JSX.Element {
       )}
 
       {expandedRequest.id && expandedRequest.view === 'fullpage' && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4">
-          <RequestDetails 
-            request={feedbackRequests.find(r => r.id === expandedRequest.id)!}
-            onClose={() => setExpandedRequest({ id: null, view: null })}
-            onSubmit={(feedback) => handleSubmitFeedback(expandedRequest.id!, feedback)}
-            onDecline={() => handleDeclineRequest(expandedRequest.id!)}
-          />
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm">
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+            <RequestDetails 
+              request={feedbackRequests.find(r => r.id === expandedRequest.id)!}
+              onClose={() => setExpandedRequest({ id: null, view: null })}
+              onSubmit={(feedback) => handleSubmitFeedback(expandedRequest.id!, feedback)}
+              onDecline={() => handleDeclineRequest(expandedRequest.id!)}
+            />
+          </div>
         </div>
       )}
     </div>

@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { Star } from "lucide-react"
 
 interface Mentor {
   id: string;
@@ -66,33 +71,40 @@ export function MentorList({ onSelectMentor }: MentorListProps) {
   });
 
   if (loading) {
-    return <div className="flex justify-center p-8">Loading mentors...</div>;
-  }
-
-  if (error) {
     return (
-      <div className="bg-red-50 p-4 rounded-lg">
-        <p className="text-red-700">{error}</p>
-        <button 
-          onClick={fetchMentors}
-          className="mt-2 text-red-600 hover:text-red-800"
-        >
-          Try again
-        </button>
+      <div className="flex items-center justify-center p-8">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <Card className="bg-destructive/10">
+        <CardContent className="p-6">
+          <p className="text-destructive">{error}</p>
+          <Button 
+            onClick={fetchMentors}
+            variant="outline"
+            className="mt-2"
+          >
+            Try again
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      {/* Filters */}
-      <div className="mb-6 grid grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Expertise
-          </label>
+    <Card>
+      <CardHeader>
+        <CardTitle>Available Mentors</CardTitle>
+        <CardDescription>Find the perfect mentor for your design feedback</CardDescription>
+        
+        {/* Filters */}
+        <div className="grid grid-cols-3 gap-4 mt-4">
           <select
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             value={filters.expertise}
             onChange={(e) => setFilters({ ...filters, expertise: e.target.value })}
           >
@@ -101,13 +113,8 @@ export function MentorList({ onSelectMentor }: MentorListProps) {
               <option key={skill} value={skill}>{skill}</option>
             ))}
           </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Language
-          </label>
           <select
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             value={filters.language}
             onChange={(e) => setFilters({ ...filters, language: e.target.value })}
           >
@@ -116,13 +123,8 @@ export function MentorList({ onSelectMentor }: MentorListProps) {
               <option key={lang} value={lang}>{lang}</option>
             ))}
           </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Minimum Rating
-          </label>
           <select
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             value={filters.minRating}
             onChange={(e) => setFilters({ ...filters, minRating: Number(e.target.value) })}
           >
@@ -132,72 +134,69 @@ export function MentorList({ onSelectMentor }: MentorListProps) {
             <option value="4.8">4.8+</option>
           </select>
         </div>
-      </div>
+      </CardHeader>
 
-      {/* Mentor List */}
-      <div className="space-y-6">
-        {filteredMentors.length === 0 ? (
-          <p className="text-center text-gray-500 py-8">
-            No mentors found matching your criteria
-          </p>
-        ) : (
-          filteredMentors.map((mentor) => (
-            <div
-              key={mentor.id}
-              className="block border rounded-lg p-6 hover:border-blue-500 transition-colors"
-            >
-              <div className="flex items-start space-x-4">
-                <img
-                  src={mentor.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(mentor.name || '')}`}
-                  alt={mentor.name || 'Mentor'}
-                  className="w-16 h-16 rounded-full"
-                />
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-lg font-semibold">{mentor.name}</h3>
-                      <div className="flex items-center mt-1">
-                        <span className="text-yellow-400">★</span>
-                        <span className="ml-1 text-sm font-medium">{mentor.rating}</span>
-                        <span className="mx-1 text-gray-400">·</span>
-                        <span className="text-sm text-gray-500">{mentor.review_count} reviews</span>
+      <CardContent>
+        <div className="space-y-6">
+          {filteredMentors.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No mentors found matching your criteria
+            </div>
+          ) : (
+            filteredMentors.map((mentor) => (
+              <Card key={mentor.id} className="hover:border-primary transition-colors">
+                <CardContent className="p-6">
+                  <div className="flex items-start space-x-4">
+                    <Avatar className="h-16 w-16">
+                      <AvatarImage src={mentor.avatar_url || undefined} alt={mentor.name || 'Mentor'} />
+                      <AvatarFallback>{mentor.name?.[0] || 'M'}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-semibold text-lg">{mentor.name}</h3>
+                          <div className="flex items-center mt-1 space-x-2">
+                            <div className="flex items-center">
+                              <Star className="h-4 w-4 fill-primary text-primary" />
+                              <span className="ml-1 text-sm font-medium">{mentor.rating}</span>
+                            </div>
+                            <span className="text-sm text-muted-foreground">·</span>
+                            <span className="text-sm text-muted-foreground">{mentor.review_count} reviews</span>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={() => onSelectMentor(mentor.id)}
+                        >
+                          Request Feedback
+                        </Button>
+                      </div>
+                      <p className="mt-2 text-sm text-muted-foreground">{mentor.bio}</p>
+                      <div className="mt-3">
+                        <h4 className="text-sm font-medium mb-2">Expertise</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {mentor.expertise?.filter(Boolean).map((skill) => (
+                            <Badge
+                              key={skill}
+                              variant="secondary"
+                            >
+                              {skill}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <span className="text-sm text-muted-foreground">
+                          Languages: {mentor.languages?.filter(Boolean).join(', ')}
+                        </span>
                       </div>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        onSelectMentor(mentor.id);
-                      }}
-                      className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-                    >
-                      Request Feedback
-                    </button>
                   </div>
-                  <p className="mt-2 text-sm text-gray-600">{mentor.bio}</p>
-                  <div className="mt-3">
-                    <h4 className="text-sm font-medium text-gray-700">Expertise</h4>
-                    <div className="mt-1 flex flex-wrap gap-2">
-                      {mentor.expertise?.filter(Boolean).map((skill) => (
-                        <span
-                          key={skill}
-                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <span className="text-sm text-gray-500">
-                      Languages: {mentor.languages?.filter(Boolean).join(', ')}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 } 

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 export function AuthCallback() {
   const navigate = useNavigate()
@@ -60,11 +61,18 @@ export function AuthCallback() {
   }, [navigate])
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <h2 className="text-xl font-semibold mb-2">Setting up your account...</h2>
-        <p className="text-gray-600">You'll be redirected in a moment.</p>
-      </div>
+    <div className="container flex items-center justify-center min-h-screen">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl text-center">Setting up your account</CardTitle>
+          <CardDescription className="text-center">
+            Please wait while we get everything ready...
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-center p-6">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </CardContent>
+      </Card>
     </div>
   )
 } 

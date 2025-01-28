@@ -17,6 +17,7 @@ interface Mentor {
   portfolio: string | null;
   languages: string[];
   available: boolean;
+  price_per_feedback: number | null;
 }
 
 interface MentorListProps {
@@ -102,15 +103,15 @@ export function MentorList({ onSelectMentor }: MentorListProps) {
         <CardDescription>Find the perfect mentor for your design feedback</CardDescription>
         
         {/* Filters */}
-        <div className="grid grid-cols-3 gap-4 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <select
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             value={filters.expertise}
             onChange={(e) => setFilters({ ...filters, expertise: e.target.value })}
           >
-            <option value="">All Skills</option>
-            {allExpertise.map(skill => (
-              <option key={skill} value={skill}>{skill}</option>
+            <option value="">Any Expertise</option>
+            {allExpertise.map(exp => (
+              <option key={exp} value={exp}>{exp}</option>
             ))}
           </select>
           <select
@@ -143,57 +144,58 @@ export function MentorList({ onSelectMentor }: MentorListProps) {
               No mentors found matching your criteria
             </div>
           ) : (
-            filteredMentors.map((mentor) => (
-              <Card key={mentor.id} className="hover:border-primary transition-colors">
-                <CardContent className="p-6">
-                  <div className="flex items-start space-x-4">
-                    <Avatar className="h-16 w-16">
-                      <AvatarImage src={mentor.avatar_url || undefined} alt={mentor.name || 'Mentor'} />
-                      <AvatarFallback>{mentor.name?.[0] || 'M'}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-semibold text-lg">{mentor.name}</h3>
-                          <div className="flex items-center mt-1 space-x-2">
-                            <div className="flex items-center">
-                              <Star className="h-4 w-4 fill-primary text-primary" />
-                              <span className="ml-1 text-sm font-medium">{mentor.rating}</span>
-                            </div>
-                            <span className="text-sm text-muted-foreground">·</span>
-                            <span className="text-sm text-muted-foreground">{mentor.review_count} reviews</span>
-                          </div>
-                        </div>
-                        <Button
-                          onClick={() => onSelectMentor(mentor.id)}
-                        >
-                          Request Feedback
-                        </Button>
-                      </div>
-                      <p className="mt-2 text-sm text-muted-foreground">{mentor.bio}</p>
-                      <div className="mt-3">
-                        <h4 className="text-sm font-medium mb-2">Expertise</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {mentor.expertise?.filter(Boolean).map((skill) => (
-                            <Badge
-                              key={skill}
-                              variant="secondary"
-                            >
-                              {skill}
-                            </Badge>
-                          ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredMentors.map((mentor) => (
+                <Card key={mentor.id} className="overflow-hidden">
+                  <CardHeader className="space-y-4">
+                    <div className="flex items-center space-x-4">
+                      <Avatar>
+                        <AvatarImage src={mentor.avatar_url || undefined} />
+                        <AvatarFallback>{mentor.name?.[0] || '?'}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 space-y-1">
+                        <CardTitle>{mentor.name || 'Anonymous'}</CardTitle>
+                        <div className="flex items-center space-x-1">
+                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                          <span className="text-sm">{mentor.rating.toFixed(1)}</span>
+                          <span className="text-sm text-muted-foreground">({mentor.review_count} reviews)</span>
                         </div>
                       </div>
-                      <div className="mt-3">
-                        <span className="text-sm text-muted-foreground">
-                          Languages: {mentor.languages?.filter(Boolean).join(', ')}
-                        </span>
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-primary">
+                          {mentor.price_per_feedback !== null ? `${mentor.price_per_feedback} credits` : 'Price not set'}
+                        </div>
+                        <div className="text-sm text-muted-foreground">per feedback</div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {mentor.bio && (
+                      <CardDescription className="line-clamp-2">
+                        {mentor.bio}
+                      </CardDescription>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {mentor.expertise?.map((skill) => (
+                        <Badge key={skill} variant="secondary">{skill}</Badge>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {mentor.languages?.map((lang) => (
+                        <Badge key={lang} variant="outline">{lang}</Badge>
+                      ))}
+                    </div>
+                    <Button 
+                      className="w-full" 
+                      onClick={() => onSelectMentor(mentor.id)}
+                      disabled={!mentor.price_per_feedback}
+                    >
+                      {mentor.price_per_feedback ? 'Request Feedback' : 'Price not set'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
         </div>
       </CardContent>

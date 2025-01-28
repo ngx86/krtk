@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { DollarSign, Clock, Users } from "lucide-react"
+import { supabase } from '../lib/supabaseClient';
 
 interface FeedbackRequest {
   id: number;
@@ -98,11 +101,64 @@ const RequestDetails: React.FC<RequestDetailsProps> = ({ request, onClose, onSub
 };
 
 export function MentorDashboard(): JSX.Element {
-  const { feedbackRequests, completeFeedbackRequest, declineFeedbackRequest } = useApp();
+  const { feedbackRequests, completeFeedbackRequest, declineFeedbackRequest, user } = useApp();
   const [expandedRequest, setExpandedRequest] = useState<{ id: number | null; view: 'sidebar' | 'fullpage' | null }>({ 
     id: null, 
     view: null 
   });
+  const [price, setPrice] = useState<string>('');
+  const [priceError, setPriceError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch current price on component mount
+  useEffect(() => {
+    if (user) {
+      fetchCurrentPrice();
+    }
+  }, [user]);
+
+  async function fetchCurrentPrice() {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('price_per_feedback')
+        .eq('id', user?.id)
+        .single();
+
+      if (error) throw error;
+      if (data?.price_per_feedback) {
+        setPrice(data.price_per_feedback.toString());
+      }
+    } catch (err) {
+      console.error('Error fetching price:', err);
+    }
+  }
+
+  async function updatePrice() {
+    if (!user) return;
+    
+    const priceNum = parseInt(price);
+    if (isNaN(priceNum) || priceNum < 1) {
+      setPriceError('Please enter a valid price (minimum 1 credit)');
+      return;
+    }
+
+    setLoading(true);
+    setPriceError(null);
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ price_per_feedback: priceNum })
+        .eq('id', user.id);
+
+      if (error) throw error;
+    } catch (err) {
+      setPriceError(err instanceof Error ? err.message : 'Failed to update price');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const handleSubmitFeedback = async (requestId: number, feedback: string) => {
     try {
@@ -156,6 +212,50 @@ export function MentorDashboard(): JSX.Element {
           </CardContent>
         </Card>
       </div>
+
+      {/* Price Setting Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Set Your Price</CardTitle>
+          <CardDescription>
+            Set how many credits you charge for each piece of feedback. This will be displayed to mentees when they browse for mentors.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="price">Price per feedback (in credits)</Label>
+              <div className="flex items-center space-x-2">
+                <Input
+                  id="price"
+                  type="number"
+                  min="1"
+                  value={price}
+                  onChange={(e) => {
+                    setPrice(e.target.value);
+                    setPriceError(null);
+                  }}
+                  placeholder="Enter price in credits"
+                  className="max-w-[200px]"
+                />
+                <Button 
+                  onClick={updatePrice}
+                  disabled={loading}
+                >
+                  {loading ? 'Saving...' : 'Save Price'}
+                </Button>
+              </div>
+              {priceError && (
+                <p className="text-sm text-destructive">{priceError}</p>
+              )}
+              <p className="text-sm text-muted-foreground">
+                Set a competitive price that reflects your expertise and the value of your feedback.
+                Remember that mentees will see this price when browsing for mentors.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {expandedRequest.id && expandedRequest.view === 'sidebar' && (
         <div className="fixed inset-y-0 right-0 w-[600px] bg-background border-l">

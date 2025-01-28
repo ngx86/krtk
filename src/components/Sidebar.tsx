@@ -41,7 +41,7 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
 
   const SidebarContent = () => (
     <div className="h-full flex flex-col">
-      <div className="p-6">
+      <div className="mt-14 p-6">
         <div className="flex items-center">
           <span className="text-2xl font-bold text-primary">μ</span>
           <span className="ml-2 text-xl font-semibold">Dashboard</span>

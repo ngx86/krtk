@@ -21,6 +21,10 @@ import { Breadcrumbs } from './components/Breadcrumbs';
 import { AppProvider } from './contexts/AppContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useState } from 'react';
+import { ThemeProvider } from '@/components/ThemeProvider';
+import { AuthProvider } from './contexts/AuthContext';
+import { PrivateRoute } from './components/PrivateRoute';
+import { AppLayout } from './components/AppLayout';
 
 function App() {
   const { session, loading } = useAuth();
@@ -39,13 +43,28 @@ function App() {
 
   if (!session) {
     return (
-      <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/auth/callback" element={<AuthCallback />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </Router>
+      <ThemeProvider defaultTheme="dark" storageKey="app-theme">
+        <div className="min-h-screen bg-background dark:bg-[#121212]">
+          <AuthProvider>
+            <AppProvider>
+              <Router>
+                <Routes>
+                  <Route path="/auth/callback" element={<AuthCallback />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route
+                    path="/*"
+                    element={
+                      <PrivateRoute>
+                        <AppLayout />
+                      </PrivateRoute>
+                    }
+                  />
+                </Routes>
+              </Router>
+            </AppProvider>
+          </AuthProvider>
+        </div>
+      </ThemeProvider>
     );
   }
 

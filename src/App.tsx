@@ -11,7 +11,7 @@ import { PrivateRoute } from './components/PrivateRoute';
 import { AppLayout } from './components/AppLayout';
 
 function App() {
-  const { session, loading } = useAuth();
+  const { loading } = useAuth();
 
   if (loading) {
     return (

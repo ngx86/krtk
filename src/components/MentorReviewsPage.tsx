@@ -1,8 +1,6 @@
-import { useParams } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 
 export function MentorReviewsPage() {
-  const { mentorId } = useParams();
   const { feedbackRequests, user } = useApp();
 
   const mentorRequests = feedbackRequests.filter(request => 

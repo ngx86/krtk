@@ -38,19 +38,19 @@ export function FeedbackHistoryPage() {
                     >
                       View Design
                     </a>
-                    {request.createdAt && (
+                    {request.created_at && (
                       <span className="text-sm text-gray-500">
-                        {new Date(request.createdAt).toLocaleDateString()}
+                        {new Date(request.created_at).toLocaleDateString()}
                       </span>
                     )}
                   </div>
                 </div>
                 <span className={`px-2 py-1 text-sm rounded-full ${
-                  request.status && request.status === 'completed'
+                  request.status === 'completed'
                     ? 'bg-green-100 text-green-800'
                     : 'bg-yellow-100 text-yellow-800'
                 }`}>
-                  {request.status && request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                  {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                 </span>
               </div>
               {request.feedback && (

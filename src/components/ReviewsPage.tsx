@@ -3,10 +3,10 @@ import { useApp } from '../contexts/AppContext';
 
 export function ReviewsPage() {
   const { mentorId } = useParams();
-  const { feedbackRequests } = useApp();
+  const { feedbackRequests, user } = useApp();
 
   const reviews = feedbackRequests.filter(
-    request => request.mentorId === mentorId && request.status === 'completed'
+    request => request.mentor_id === user?.id && request.status === 'completed'
   );
 
   return (

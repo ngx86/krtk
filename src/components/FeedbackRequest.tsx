@@ -64,13 +64,13 @@ export function FeedbackRequest({ selectedMentorId, creditCost }: FeedbackReques
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     createFeedbackRequest({
-      menteeId: user?.id || '',
-      mentorId: selectedMentorId?.toString(),
+      mentee_id: user?.id || '',
+      mentor_id: selectedMentorId?.toString(),
       description: formData.description,
       link: formData.designLink,
       status: 'pending',
       urgency: formData.urgency,
-      creditsCost: creditCost
+      credits_cost: creditCost
     });
   };
 

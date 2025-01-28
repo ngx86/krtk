@@ -14,10 +14,10 @@ interface FeedbackRequest {
   link: string;
   status: 'pending' | 'completed' | 'accepted' | 'declined';
   urgency: 'low' | 'medium' | 'high';
-  creditsCost: number;
+  credits_cost: number;
   feedback?: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface RequestDetailsProps {
@@ -38,7 +38,7 @@ const RequestDetails: React.FC<RequestDetailsProps> = ({ request, onClose, onSub
             <CardTitle>{request.description}</CardTitle>
             <div className="flex items-center mt-2 space-x-2">
               <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground hover:bg-primary/80">
-                {request.creditsCost} Credits
+                {request.credits_cost} Credits
               </span>
               <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80">
                 {request.urgency}

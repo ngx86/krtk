@@ -113,7 +113,7 @@ export function MenteeDashboard() {
                         View Design
                       </a>
                       <span className="text-sm text-muted-foreground">
-                        Submitted on {request.createdAt && new Date(request.createdAt).toLocaleDateString()}
+                        Submitted on {request.created_at && new Date(request.created_at).toLocaleDateString()}
                       </span>
                     </div>
                   </div>

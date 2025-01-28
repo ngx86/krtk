@@ -4,25 +4,25 @@ import { supabase } from '../lib/supabaseClient';
 
 interface FeedbackRequest {
   id: number;
-  menteeId: string;
-  mentorId?: string;
+  mentee_id: string;
+  mentor_id?: string;
   description: string;
   link: string;
   status: 'pending' | 'accepted' | 'completed' | 'declined';
   urgency: 'low' | 'medium' | 'high';
-  creditsCost: number;
+  credits_cost: number;
   feedback?: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface Notification {
   id: number;
-  userId: string;
+  user_id: string;
   message: string;
   type: 'feedback' | 'credits' | 'system';
   read: boolean;
-  createdAt: string;
+  created_at: string;
 }
 
 interface AppUser {
@@ -36,7 +36,7 @@ interface AppContextType {
   notifications: Notification[];
   feedbackRequests: FeedbackRequest[];
   user: AppUser | null;
-  createFeedbackRequest: (data: Omit<FeedbackRequest, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  createFeedbackRequest: (data: Omit<FeedbackRequest, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   acceptFeedbackRequest: (requestId: number) => Promise<void>;
   completeFeedbackRequest: (requestId: number, feedback: string) => Promise<void>;
   declineFeedbackRequest: (requestId: number, reason: string) => Promise<void>;
@@ -103,8 +103,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { data: notificationsData } = await supabase
       .from('notifications')
       .select('*')
-      .eq('userId', appUser.id)
-      .order('createdAt', { ascending: false });
+      .eq('user_id', appUser.id)
+      .order('created_at', { ascending: false });
     if (notificationsData) {
       setNotifications(notificationsData);
     }
@@ -113,8 +113,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { data: requestsData } = await supabase
       .from('feedback_requests')
       .select('*')
-      .or(`menteeId.eq.${appUser.id},mentorId.eq.${appUser.id}`)
-      .order('createdAt', { ascending: false });
+      .or(`mentee_id.eq.${appUser.id},mentor_id.eq.${appUser.id}`)
+      .order('created_at', { ascending: false });
     if (requestsData) {
       setFeedbackRequests(requestsData);
     }
@@ -130,7 +130,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         event: '*',
         schema: 'public',
         table: 'notifications',
-        filter: `userId=eq.${appUser.id}`,
+        filter: `user_id=eq.${appUser.id}`,
       }, payload => {
         if (payload.eventType === 'INSERT') {
           setNotifications(prev => [payload.new as Notification, ...prev]);
@@ -145,7 +145,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         event: '*',
         schema: 'public',
         table: 'feedback_requests',
-        filter: `menteeId=eq.${appUser.id}`,
+        filter: `mentee_id=eq.${appUser.id}`,
       }, payload => {
         if (payload.eventType === 'UPDATE') {
           setFeedbackRequests(prev => 
@@ -165,15 +165,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   // Context methods
-  async function createFeedbackRequest(data: Omit<FeedbackRequest, 'id' | 'createdAt' | 'updatedAt'>) {
+  async function createFeedbackRequest(data: Omit<FeedbackRequest, 'id' | 'created_at' | 'updated_at'>) {
     if (!appUser) return;
 
     const { error } = await supabase.from('feedback_requests').insert([{
       ...data,
-      menteeId: appUser.id,
+      mentee_id: appUser.id,
       status: 'pending',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     }]);
 
     if (error) throw error;
@@ -187,8 +187,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .from('feedback_requests')
       .update({
         status: 'accepted',
-        mentorId: appUser.id,
-        updatedAt: new Date().toISOString(),
+        mentor_id: appUser.id,
+        updated_at: new Date().toISOString(),
       })
       .eq('id', requestId);
 
@@ -204,7 +204,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .update({
         status: 'completed',
         feedback,
-        updatedAt: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .eq('id', requestId);
 
@@ -220,7 +220,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .update({
         status: 'declined',
         feedback: reason,
-        updatedAt: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .eq('id', requestId);
 

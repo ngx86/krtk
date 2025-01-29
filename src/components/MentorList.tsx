@@ -144,54 +144,63 @@ export function MentorList({ onSelectMentor }: MentorListProps) {
               No mentors found matching your criteria
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {filteredMentors.map((mentor) => (
-                <Card key={mentor.id} className="overflow-hidden">
-                  <CardHeader className="space-y-4">
+                <Card key={mentor.id}>
+                  <CardHeader>
                     <div className="flex items-center space-x-4">
-                      <Avatar>
+                      <Avatar className="h-12 w-12">
                         <AvatarImage src={mentor.avatar_url || undefined} />
                         <AvatarFallback>{mentor.name?.[0] || '?'}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1 space-y-1">
                         <CardTitle>{mentor.name || 'Anonymous'}</CardTitle>
-                        <div className="flex items-center space-x-1">
+                        <div className="flex items-center space-x-2">
                           <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                          <span className="text-sm">{mentor.rating.toFixed(1)}</span>
-                          <span className="text-sm text-muted-foreground">({mentor.review_count} reviews)</span>
+                          <span>{mentor.rating.toFixed(1)}</span>
+                          <span className="text-sm text-muted-foreground">
+                            ({mentor.review_count} reviews)
+                          </span>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-primary">
-                          {mentor.price_per_feedback !== null ? `${mentor.price_per_feedback} credits` : 'Price not set'}
-                        </div>
-                        <div className="text-sm text-muted-foreground">per feedback</div>
-                      </div>
+                      <Badge variant={mentor.available ? "default" : "secondary"}>
+                        {mentor.available ? "Available" : "Unavailable"}
+                      </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    {mentor.bio && (
-                      <CardDescription className="line-clamp-2">
-                        {mentor.bio}
-                      </CardDescription>
-                    )}
-                    <div className="flex flex-wrap gap-2">
-                      {mentor.expertise?.map((skill) => (
-                        <Badge key={skill} variant="secondary">{skill}</Badge>
-                      ))}
+                  <CardContent>
+                    <div className="space-y-4">
+                      {mentor.bio && (
+                        <CardDescription className="line-clamp-2">
+                          {mentor.bio}
+                        </CardDescription>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        {mentor.expertise?.slice(0, 3).map((skill) => (
+                          <Badge key={skill} variant="outline">{skill}</Badge>
+                        ))}
+                        {mentor.expertise?.length > 3 && (
+                          <Badge variant="outline">+{mentor.expertise.length - 3} more</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="text-lg font-semibold">
+                          {mentor.price_per_feedback !== null 
+                            ? `${mentor.price_per_feedback} credits` 
+                            : 'Price not set'}
+                        </div>
+                        <Button
+                          onClick={() => onSelectMentor(mentor.id)}
+                          disabled={!mentor.available || mentor.price_per_feedback === null}
+                        >
+                          {!mentor.available 
+                            ? "Currently Unavailable" 
+                            : mentor.price_per_feedback === null 
+                              ? "Price Not Set"
+                              : "Request Feedback"}
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {mentor.languages?.map((lang) => (
-                        <Badge key={lang} variant="outline">{lang}</Badge>
-                      ))}
-                    </div>
-                    <Button 
-                      className="w-full" 
-                      onClick={() => onSelectMentor(mentor.id)}
-                      disabled={!mentor.price_per_feedback}
-                    >
-                      {mentor.price_per_feedback ? 'Request Feedback' : 'Price not set'}
-                    </Button>
                   </CardContent>
                 </Card>
               ))}

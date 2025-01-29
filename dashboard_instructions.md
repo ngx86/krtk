@@ -1,4 +1,3 @@
-
 # Micro-Mentorship Platform - Updated Dashboard Layout Specification
 
 ## Overview
@@ -15,18 +14,18 @@ The header will remain at the top of the dashboard across both Mentee and Mentor
 
 ### Header Layout and Features
 1. **Logo and Title**:
-   - Place the platform logo on the left side, followed by a “Dashboard” title. This reinforces the user’s current location.
+   - Place the platform logo on the left side, followed by a "Dashboard" title. This reinforces the user's current location.
 
 2. **Credit Balance**:
-   - **Display**: Show the available credits (e.g., “Credits: 10”) in a prominent, easy-to-read font.
-   - **Buy Credits Button**: Position a “Buy Credits” button next to the credit balance. Use a primary color (e.g., green or blue) to make it visually distinct.
-   - **Tooltip**: On hover or click, provide more information about credit usage, e.g., “Each feedback request costs 3 credits.”
+   - **Display**: Show the available credits (e.g., "Credits: 10") in a prominent, easy-to-read font.
+   - **Buy Credits Button**: Position a "Buy Credits" button next to the credit balance. Use a primary color (e.g., green or blue) to make it visually distinct.
+   - **Tooltip**: On hover or click, provide more information about credit usage, e.g., "Each feedback request costs 3 credits."
 
 3. **Notifications Icon**:
    - **Icon**: Add a bell icon to indicate notifications, positioned to the right of the credit balance.
-   - **Badge**: Include a small, red badge on the icon to indicate unread notifications, e.g., “3” for three new notifications.
+   - **Badge**: Include a small, red badge on the icon to indicate unread notifications, e.g., "3" for three new notifications.
    - **Dropdown**: On click, display a dropdown with recent notifications:
-     - Example notifications: “Feedback completed for [Design Name].”, “Low credits - only 2 credits remaining.”
+     - Example notifications: "Feedback completed for [Design Name]."
      - Notifications can be marked as read or cleared.
 
 4. **User Profile**:
@@ -67,33 +66,33 @@ The main content area is divided into specific sections for mentees and mentors.
 Provide an easy way for users to check and add credits.
 
 #### Layout and Features
-- **Title**: “Available Credits”
+- **Title**: "Available Credits"
 - **Credits Display**: Large, bold font showing the number of credits remaining.
 - **Buy Credits Button**: Styled in a primary color, next to the credits display.
-- **Credit Information**: Add a short line or tooltip below the credit display, e.g., “Each feedback request costs 3 credits.”
+- **Credit Information**: Add a short line or tooltip below the credit display, e.g., "Each feedback request costs 3 credits."
 
 ---
 
 ### Section B: Submit Feedback (Mentee) / Feedback Queue (Mentor)
 
 #### Mentee View: Submit Feedback
-- **Section Title**: “Submit a New Feedback Request”
+- **Section Title**: "Submit a New Feedback Request"
 - **Design Link Field**:
-  - **Label**: “Design Link (optional)”
-  - **Tooltip**: Explain supported platforms, e.g., “Supports links from Figma, Dribbble, and Adobe XD.”
+  - **Label**: "Design Link (optional)"
+  - **Tooltip**: Explain supported platforms, e.g., "Supports links from Figma, Dribbble, and Adobe XD."
 - **Description Field**:
-  - **Label**: “Description / Questions”
-  - **Placeholder**: “Describe what you’d like feedback on, such as layout, colors, or typography.”
+  - **Label**: "Description / Questions"
+  - **Placeholder**: "Describe what you'd like feedback on, such as layout, colors, or typography."
 - **Submit Button**:
-  - Text: “Submit Request (3 Credits)”
+  - Text: "Submit Request (3 Credits)"
   - Confirmation Dialog: Confirm credit deduction before submission.
 
 #### Mentor View: Feedback Queue
-- **Section Title**: “Pending Feedback Requests”
+- **Section Title**: "Pending Feedback Requests"
 - **Request Cards**:
-  - Display each feedback request as a card with details (e.g., “Review my logo design”).
-  - **Action Button**: “Provide Feedback” button to open the request.
-- **Status Indicator**: Show statuses for requests (e.g., “Pending”).
+  - Display each feedback request as a card with details (e.g., "Review my logo design").
+  - **Action Button**: "Provide Feedback" button to open the request.
+- **Status Indicator**: Show statuses for requests (e.g., "Pending").
 
 ---
 
@@ -103,16 +102,16 @@ Provide an easy way for users to check and add credits.
 Organize past feedback requests for easy viewing and sorting.
 
 #### Layout and Features
-- **Title**: “Your Feedback History”
+- **Title**: "Your Feedback History"
 - **Feedback Cards**:
-  - **Status**: Show “Pending,” “In Progress,” or “Completed” with color-coding (yellow, blue, green).
+  - **Status**: Show "Pending," "In Progress," or "Completed" with color-coding (yellow, blue, green).
   - **Design Title**: Show design name and submission date.
-  - **View Link**: If a design link was provided, show a “View Design” link.
-  - **Mentor Feedback**: For completed requests, display feedback with an expandable “Read more” option if needed.
-  - **Rating Option**: Include a “Rate This Feedback” button with a 5-star rating system for mentor feedback.
+  - **View Link**: If a design link was provided, show a "View Design" link.
+  - **Mentor Feedback**: For completed requests, display feedback with an expandable "Read more" option if needed.
+  - **Rating Option**: Include a "Rate This Feedback" button with a 5-star rating system for mentor feedback.
 
 - **Filter/Sort Options**:
-  - Allow mentees to filter by status (e.g., “Pending,” “Completed”) or by date (e.g., “Most Recent”).
+  - Allow mentees to filter by status (e.g., "Pending," "Completed") or by date (e.g., "Most Recent").
 
 ---
 
@@ -141,13 +140,13 @@ Keep users informed of important events (feedback completion, low credits).
 
 ### Main Content Area
 1. **Available Credits Section**:
-   - Display credits and “Buy Credits” button.
+   - Display credits and "Buy Credits" button.
 
 2. **Submit Feedback (Mentee)**:
    - Design link, description field, and submit button.
 
 3. **Feedback Queue (Mentor)**:
-   - Pending feedback requests with “Provide Feedback” action.
+   - Pending feedback requests with "Provide Feedback" action.
 
 4. **Feedback History**:
    - Sortable list of feedback requests, with mentor feedback and rating options.
@@ -155,3 +154,121 @@ Keep users informed of important events (feedback completion, low credits).
 ---
 
 This document provides the necessary details to implement a well-structured dashboard with improved navigation, consistency, and clarity across both Mentee and Mentor views.
+
+# Dashboard Layout Instructions
+
+## 1. Header Section
+
+### Layout and Components
+1. **Logo and Title**:
+   - Position logo on the far left
+   - Display app name or dashboard title next to logo
+
+2. **Credit Balance**:
+   - Display the available credits (e.g., "Credits: 10")
+   - "Buy Credits" button next to balance
+   - Tooltip showing credit usage info
+
+3. **Notifications Icon**:
+   - Bell icon with unread badge
+   - Dropdown for recent notifications
+   - Clear/mark as read functionality
+
+4. **User Profile**:
+   - Profile icon/avatar on far right
+   - Dropdown menu with settings and logout
+
+## 2. Mentor Dashboard
+
+### Quick Stats
+1. **Credits Card**:
+   - Display total earnings
+   - Show pending payouts
+   - Track completed sessions
+
+2. **Pricing Card**:
+   - Set price per feedback
+   - Market rate comparison
+   - Update price button
+   - Price history graph (optional)
+
+3. **Request Queue**:
+   - Number of pending requests
+   - Accept/decline actions
+   - Urgency indicators
+
+### Feedback Management
+1. **Active Requests**:
+   - List of pending feedback requests
+   - Sort by urgency/deadline
+   - Quick actions (accept/decline)
+
+2. **Completed Feedback**:
+   - History of provided feedback
+   - Mentee ratings
+   - Filter by date range
+
+## 3. Mentee Dashboard
+
+### Quick Stats
+1. **Credit Balance**:
+   - Available credits
+   - Usage history
+   - Buy credits button
+
+2. **Active Requests**:
+   - Pending feedback count
+   - Status indicators
+   - Time estimates
+
+3. **Completed Reviews**:
+   - Total feedback received
+   - Average response time
+   - Mentor ratings given
+
+### Request Management
+1. **New Request**:
+   - Clear CTA button
+   - Credit cost calculator
+   - Mentor selection
+
+2. **Request History**:
+   - List of all requests
+   - Status filters
+   - Sort by date/status
+
+## 4. Responsive Design
+
+### Desktop Layout
+- Full sidebar navigation
+- Multi-column stats grid
+- Expanded request details
+
+### Tablet Layout
+- Collapsible sidebar
+- Two-column stats
+- Scrollable lists
+
+### Mobile Layout
+- Bottom navigation bar
+- Single column layout
+- Simplified stats view
+
+## 5. Theme Support
+
+### Light Theme
+- White background
+- Subtle shadows
+- High contrast text
+
+### Dark Theme
+- Dark background
+- Softer shadows
+- Adjusted contrast
+
+## 6. Accessibility
+
+- Clear focus states
+- Keyboard navigation
+- Screen reader support
+- Color contrast compliance

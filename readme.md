@@ -1,3 +1,123 @@
+# Micro-Mentorship Platform
+
+## Overview
+A platform connecting designers with mentors for quick, focused feedback sessions.
+
+## Core Features
+- User authentication with Supabase
+- Credit-based feedback system
+- Real-time notifications
+- Mentor/mentee dashboards
+
+## Database Schema
+
+### Users Table
+```sql
+users (
+  id: string,
+  email: string,
+  role: 'mentee' | 'mentor',
+  credits: number,
+  name: string?,
+  bio: string?,
+  avatar_url: string?,
+  rating: number,
+  review_count: number,
+  expertise: string[],
+  languages: string[],
+  portfolio_url: string?,
+  price_per_feedback: number?,
+  created_at: string
+)
+```
+
+### Feedback Requests Table
+```sql
+feedback_requests (
+  id: number,
+  mentee_id: string,
+  mentor_id: string?,
+  description: string,
+  link: string,
+  status: 'pending' | 'accepted' | 'completed' | 'declined',
+  urgency: 'low' | 'medium' | 'high',
+  credits_cost: number,
+  feedback: string?,
+  created_at: string,
+  updated_at: string
+)
+```
+
+### Notifications Table
+```sql
+notifications (
+  id: number,
+  user_id: string,
+  message: string,
+  type: 'feedback' | 'credits' | 'system',
+  read: boolean,
+  created_at: string
+)
+```
+
+## Component Structure
+
+### Core Components
+1. `MentorDashboard.tsx`
+   - Display pending feedback requests
+   - Show earnings and completed reviews
+   - Set price per feedback
+   - Accept/decline requests
+
+2. `MenteeDashboard.tsx`
+   - Show available credits
+   - Display active and completed requests
+   - Request new feedback
+
+3. `FeedbackRequest.tsx`
+   - Submit new feedback requests
+   - Set urgency level
+   - Specify design details
+
+4. `NotificationsPage.tsx`
+   - List all notifications
+   - Mark as read functionality
+   - Sort by date
+
+### Authentication
+- Supabase Auth UI for sign-in/sign-up
+- Role-based access control
+- Protected routes
+
+### State Management
+- React Context for app state
+- Real-time updates with Supabase subscriptions
+- Optimistic updates for better UX
+
+## Development
+
+### Prerequisites
+- Node.js 18+
+- npm/yarn
+- Supabase account
+
+### Setup
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Create `.env` file with Supabase credentials
+4. Run development server: `npm run dev`
+
+### Deployment
+1. Push changes to GitHub
+2. Vercel will automatically deploy from the main branch
+3. Environment variables must be set in Vercel dashboard
+
+## Tech Stack
+- React + TypeScript
+- Vite
+- Supabase
+- shadcn/ui
+- TailwindCSS
 
 ## Next Steps: Integrating Credits, Feedback, and Notifications
 

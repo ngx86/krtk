@@ -16,6 +16,7 @@ export interface Database {
           languages: string[];
           portfolio_url: string | null;
           price_per_feedback: number | null;
+          available: boolean;
           created_at: string;
         };
         Insert: {
@@ -32,6 +33,7 @@ export interface Database {
           languages?: string[];
           portfolio_url?: string | null;
           price_per_feedback?: number | null;
+          available?: boolean;
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['users']['Insert']>;

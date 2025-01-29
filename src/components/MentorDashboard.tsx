@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { DollarSign, Clock, Users } from "lucide-react"
 import { supabase } from '../lib/supabaseClient';
 
@@ -109,28 +110,45 @@ export function MentorDashboard(): JSX.Element {
   const [price, setPrice] = useState<string>('');
   const [priceError, setPriceError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isAvailable, setIsAvailable] = useState(false);
 
-  // Fetch current price on component mount
   useEffect(() => {
     if (user) {
-      fetchCurrentPrice();
+      fetchMentorStatus();
     }
   }, [user]);
 
-  async function fetchCurrentPrice() {
+  async function fetchMentorStatus() {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('price_per_feedback')
+        .select('price_per_feedback, available')
         .eq('id', user?.id)
         .single();
 
       if (error) throw error;
-      if (data?.price_per_feedback) {
-        setPrice(data.price_per_feedback.toString());
+      if (data) {
+        setPrice(data.price_per_feedback?.toString() || '');
+        setIsAvailable(data.available || false);
       }
     } catch (err) {
-      console.error('Error fetching price:', err);
+      console.error('Error fetching mentor status:', err);
+    }
+  }
+
+  async function updateAvailability(available: boolean) {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ available })
+        .eq('id', user.id);
+
+      if (error) throw error;
+      setIsAvailable(available);
+    } catch (err) {
+      console.error('Error updating availability:', err);
     }
   }
 
@@ -213,12 +231,31 @@ export function MentorDashboard(): JSX.Element {
         </Card>
       </div>
 
+      {/* Availability Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Availability Status</CardTitle>
+          <CardDescription>
+            Control whether you're available to receive new feedback requests
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-4">
+            <Switch
+              checked={isAvailable}
+              onCheckedChange={updateAvailability}
+            />
+            <Label>Available for new requests</Label>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Price Setting Card */}
       <Card>
         <CardHeader>
           <CardTitle>Set Your Price</CardTitle>
           <CardDescription>
-            Set how many credits you charge for each piece of feedback. This will be displayed to mentees when they browse for mentors.
+            Set how many credits you charge for each piece of feedback
           </CardDescription>
         </CardHeader>
         <CardContent>

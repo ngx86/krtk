@@ -1,4 +1,3 @@
-g
 # Micro-Mentorship Platform - App Flow Document
 
 ## User Flows
@@ -10,87 +9,83 @@ g
 
 2. **Dashboard**:  
    - Displays:
-     - Remaining credits.
-     - Feedback request history.
-     - Button to purchase credits.
-   - User selects "Request Feedback."
+     - Remaining credits
+     - Feedback request history
+     - Button to purchase credits
+   - User selects "Request Feedback"
 
-3. **Request Feedback**:
-   - User uploads files (images, PDFs) or provides a link (e.g., Figma, Google Drive).
-   - Adds context or specific questions about the design.
-   - Confirms credit usage and submits the request.
+3. **Browse Mentors**:
+   - View list of available mentors
+   - See mentor profiles with:
+     - Expertise and languages
+     - Rating and reviews
+     - Price per feedback
+   - Filter mentors by expertise, language, or price range
 
-4. **Session in Progress**:
-   - Request is sent to a mentor queue.
-   - Mentee waits for the feedback to be delivered (email notification upon completion).
+4. **Request Feedback**:
+   - Select a mentor or post to all mentors
+   - Upload files or provide design link
+   - Add context and specific questions
+   - Confirm credit cost based on mentor's price
+   - Submit request if sufficient credits available
 
-5. **Feedback Review**:
-   - Mentee receives feedback as text in the app.
-   - Can rate the mentor (optional).
+5. **Session in Progress**:
+   - Request sent to selected mentor
+   - Mentor can accept or decline
+   - Real-time notifications for status updates
+   - Email notification upon completion
 
-6. **Purchase Credits** (If Low on Credits):
-   - User clicks "Buy Credits."
-   - Redirected to a payment form (Stripe integration).
-   - Credits are added to their account upon successful payment.
+6. **Feedback Review**:
+   - Review received feedback
+   - Option to rate mentor
+   - Credits automatically deducted
 
----
+7. **Purchase Credits**:
+   - Click "Buy Credits"
+   - Select credit package
+   - Complete payment via Stripe
+   - Credits instantly added to account
 
 ### 2. Mentor Flow
 1. **Sign Up/Login**:
-   - Mentor logs in using email and password.
-   - Profile setup includes areas of expertise and bio.
+   - Register as a mentor
+   - Complete profile with expertise and languages
 
-2. **Mentor Dashboard**:
-   - Displays:
-     - Feedback request queue.
-     - Total credits earned (pending payout).
-     - Completed session history.
+2. **Set Pricing**:
+   - Set price per feedback in credits
+   - Update pricing anytime from dashboard
+   - View market rates from other mentors
 
-3. **Respond to Feedback Requests**:
-   - Mentor selects a pending request from the queue.
-   - Reviews the mentee's design and context/questions.
-   - Provides feedback via text.
+3. **Dashboard**:
+   - View:
+     - Pending requests
+     - Completed feedback
+     - Earnings history
+   - Set availability status
 
-4. **Submit Feedback**:
-   - Feedback is submitted and marked as completed.
-   - Credits are added to the mentor's account.
+4. **Handle Requests**:
+   - Review incoming requests
+   - Accept or decline with reason
+   - Submit feedback within timeframe
+   - Track completed sessions
 
-5. **Request Payout**:
-   - Mentors can request payouts after reaching the minimum earnings threshold.
-   - Payments are processed through Stripe Connect.
+### Navigation Map
 
----
+#### Mentee Navigation
+- Login → Dashboard → Browse Mentors → Request Feedback → Review Feedback → Buy Credits
 
-## Key Screens
+#### Mentor Navigation
+- Login → Set Price → Dashboard → Review Requests → Submit Feedback → Track Earnings
 
-### 1. Mentee Screens
-- **Login/Signup**: Simple email/password form.
-- **Dashboard**: Displays credits, session history, and "Request Feedback" button.
-- **Request Feedback**: File upload, text input for questions, and confirmation.
-- **Feedback Review**: Completed feedback displayed with mentor rating option.
-
-### 2. Mentor Screens
-- **Login/Signup**: Mentor-specific profile setup.
-- **Dashboard**: Displays pending requests, earnings, and session history.
-- **Feedback Submission**: Feedback entry form for mentee requests.
-
----
-
-## Navigation Map
-
-### Mentee Navigation
-- Login → Dashboard → Request Feedback → Feedback Review → Buy Credits
-
-### Mentor Navigation
-- Login → Dashboard → Respond to Feedback → Submit Feedback → Request Payout
-
----
-
-## Notifications
+### Notifications
 - **Mentee**:
-  - Email notifications for feedback completion.
-  - Alerts for low credits.
+  - New mentor responses
+  - Feedback completion
+  - Low credit alerts
+  - Price changes from favorite mentors
 - **Mentor**:
-  - Email notifications for new feedback requests.
-  - Alerts for payout eligibility.
+  - New feedback requests
+  - Request acceptance deadline reminders
+  - Feedback submission reminders
+  - Earnings updates
 

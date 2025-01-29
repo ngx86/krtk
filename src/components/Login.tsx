@@ -2,8 +2,23 @@ import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
 import { supabase } from '../lib/supabaseClient'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useEffect } from 'react'
+
+const SITE_URL = 'https://krtk-git-feat-mentor-availability-hi-n-gstudios-projects.vercel.app'
 
 export function Login() {
+  useEffect(() => {
+    // Add auth state change listener for debugging
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth event:', event)
+      console.log('Session:', session)
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
+
   return (
     <div className="container flex items-center justify-center min-h-[calc(100vh-4rem)] py-10">
       <Card className="w-full max-w-md">
@@ -28,7 +43,7 @@ export function Login() {
               },
             }}
             providers={[]}
-            redirectTo={`${window.location.origin}/auth/callback`}
+            redirectTo={`${SITE_URL}/auth/callback`}
             magicLink={false}
             showLinks={true}
             view="sign_in"

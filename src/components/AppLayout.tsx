@@ -17,7 +17,14 @@ export function AppLayout() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log('AppLayout: User state changed:', { 
+      exists: !!user, 
+      role: user?.role,
+      id: user?.id 
+    });
+    
     if (!user) {
+      console.log('No user, redirecting to login');
       navigate('/login');
       return;
     }

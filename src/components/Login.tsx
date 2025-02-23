@@ -53,6 +53,7 @@ export function Login() {
         email,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
+          shouldCreateUser: true,
           data: {
             role: selectedRole
           }
@@ -62,7 +63,7 @@ export function Login() {
       if (error) throw error;
 
       setMessage({
-        text: 'Check your email for the login link!',
+        text: 'Check your email for the login link. If it opens in a new window, copy the link and paste it in this window instead.',
         type: 'success'
       });
       
@@ -74,6 +75,20 @@ export function Login() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function CopyLinkInstructions() {
+    return (
+      <div className="mt-4 p-4 bg-muted rounded-md">
+        <h3 className="font-medium mb-2">When you get the email:</h3>
+        <ol className="list-decimal list-inside space-y-1 text-sm">
+          <li>Right-click the magic link</li>
+          <li>Select "Copy link address"</li>
+          <li>Come back to this window</li>
+          <li>Paste the link in the address bar</li>
+        </ol>
+      </div>
+    );
   }
 
   return (
@@ -95,6 +110,7 @@ export function Login() {
                 : 'bg-green-100 text-green-800'
             }`}>
               {message.text}
+              {message.type === 'success' && <CopyLinkInstructions />}
             </div>
           )}
           

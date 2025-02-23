@@ -8,44 +8,35 @@ export function AuthCallback() {
 
   useEffect(() => {
     const handleCallback = async () => {
-      console.log('AuthCallback: Starting...')
-      console.log('URL:', window.location.href)
-      
-      // First handle the URL hash if present
-      const hashParams = new URLSearchParams(window.location.hash.substring(1))
-      const accessToken = hashParams.get('access_token')
-      const refreshToken = hashParams.get('refresh_token')
-      
-      console.log('Hash params:', { accessToken: !!accessToken, refreshToken: !!refreshToken })
-
-      if (accessToken) {
-        console.log('Setting session with tokens...')
-        await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken || ''
-        })
-      }
-
-      // Then get the current session
-      const { data: { session }, error } = await supabase.auth.getSession()
-      console.log('Got session:', { session: !!session, error })
-      
-      if (error || !session) {
-        console.error('Error during auth callback:', error)
-        navigate('/login')
-        return
-      }
-
       try {
-        // Get the role from user metadata
-        const userRole = session.user.user_metadata.role
-        console.log('User role:', userRole)
+        console.log('1. AuthCallback: Starting...')
+        setIsProcessing(true)
         
-        if (!userRole) {
-          throw new Error('No role specified')
+        const hashParams = new URLSearchParams(window.location.hash.substring(1))
+        const accessToken = hashParams.get('access_token')
+        const refreshToken = hashParams.get('refresh_token')
+        
+        console.log('2. Got tokens:', { hasAccessToken: !!accessToken })
+
+        if (accessToken) {
+          console.log('3. Setting session...')
+          await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || ''
+          })
         }
 
-        // Update or create user profile in public.users table
+        const { data: { session }, error } = await supabase.auth.getSession()
+        console.log('4. Session check:', { hasSession: !!session, error })
+        
+        if (error || !session) {
+          throw new Error('No session after auth')
+        }
+
+        const userRole = session.user.user_metadata.role
+        console.log('5. User role from metadata:', userRole)
+
+        // Update or create user profile
         const { error: profileError } = await supabase
           .from('users')
           .upsert({
@@ -55,21 +46,32 @@ export function AuthCallback() {
             credits: userRole === 'mentee' ? 3 : 0,
             created_at: new Date().toISOString(),
           })
+        
+        console.log('6. Profile upsert:', { error: profileError })
 
         if (profileError) throw profileError
 
-        // Clear the role from sessionStorage
-        sessionStorage.removeItem('selectedRole')
-
-        console.log('Successfully set up user, redirecting to home...')
-        // Redirect to home - AppLayout will handle showing the correct dashboard
-
-        // Add a small delay to ensure database writes are complete
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        // Verify profile was created
+        const { data: profile, error: fetchError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
         
+        console.log('7. Profile verification:', { hasProfile: !!profile, error: fetchError })
+
+        if (!profile) throw new Error('Profile not found after creation')
+
+        sessionStorage.removeItem('selectedRole')
+        
+        // Add longer delay and more explicit logging
+        console.log('8. Waiting to ensure DB consistency...')
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        
+        console.log('9. Redirecting to dashboard...')
         navigate('/', { replace: true })
       } catch (err) {
-        console.error('Error in auth callback:', err)
+        console.error('AuthCallback error:', err)
         navigate('/login')
       } finally {
         setIsProcessing(false)

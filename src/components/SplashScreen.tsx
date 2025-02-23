@@ -12,7 +12,10 @@ export function SplashScreen() {
 
   useEffect(() => {
     const checkAuth = async () => {
+      console.log('SplashScreen: Checking auth...')
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('SplashScreen: Session:', { hasSession: !!session })
+
       if (session?.user) {
         const { data: profile } = await supabase
           .from('users')
@@ -20,9 +23,17 @@ export function SplashScreen() {
           .eq('id', session.user.id)
           .single();
 
+        console.log('SplashScreen: Profile check:', { 
+          hasProfile: !!profile,
+          userId: session.user.id,
+          profileId: profile?.id
+        })
+
         if (profile) {
-          // Only redirect if we have both session and profile
+          console.log('SplashScreen: Redirecting to dashboard...')
           navigate('/', { replace: true });
+        } else {
+          console.log('SplashScreen: No profile found')
         }
       }
     };

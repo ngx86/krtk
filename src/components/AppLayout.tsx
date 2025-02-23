@@ -17,14 +17,14 @@ export function AppLayout() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log('AppLayout: User state changed:', { 
-      exists: !!user, 
+    console.log('AppLayout: User state:', { 
+      hasUser: !!user,
       role: user?.role,
-      id: user?.id 
+      id: user?.id
     });
     
     if (!user) {
-      console.log('No user, redirecting to login');
+      console.log('AppLayout: No user, redirecting to login');
       navigate('/login');
       return;
     }

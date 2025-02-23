@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
@@ -16,6 +16,20 @@ export function AppLayout() {
   const { user, credits } = useApp();
 
   if (!user) return null;
+
+  // Define available routes based on role
+  const routes = user.role === 'mentee' ? (
+    <>
+      <Route path="/" element={<MenteeDashboard />} />
+      <Route path="/mentors" element={<MentorsPage />} />
+      <Route path="/credits" element={<CreditsPage />} />
+      <Route path="/request-feedback" element={<RequestFeedbackPage />} />
+    </>
+  ) : (
+    <>
+      <Route path="/" element={<MentorDashboard />} />
+    </>
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -34,15 +48,11 @@ export function AppLayout() {
       <div className="lg:pl-64">
         <main className="py-20 px-4 sm:px-6 lg:px-8">
           <Routes>
-            <Route 
-              path="/" 
-              element={user.role === 'mentee' ? <MenteeDashboard /> : <MentorDashboard />} 
-            />
-            <Route path="/mentors" element={<MentorsPage />} />
-            <Route path="/credits" element={<CreditsPage />} />
+            {routes}
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/request-feedback" element={<RequestFeedbackPage />} />
+            {/* Catch any invalid routes and redirect to home */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
       </div>

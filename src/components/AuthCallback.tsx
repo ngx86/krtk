@@ -9,22 +9,17 @@ export function AuthCallback() {
     const handleCallback = async () => {
       const { data: { session }, error } = await supabase.auth.getSession()
       
-      if (error) {
+      if (error || !session) {
         console.error('Error during auth callback:', error)
-        navigate('/login')
-        return
-      }
-
-      if (!session) {
         navigate('/login')
         return
       }
 
       try {
         // Get the role from user metadata
-        const role = session.user.user_metadata.role as 'mentor' | 'mentee'
+        const userRole = session.user.user_metadata.role as 'mentor' | 'mentee'
         
-        if (!role) {
+        if (!userRole) {
           throw new Error('No role specified')
         }
 
@@ -34,21 +29,20 @@ export function AuthCallback() {
           .upsert({
             id: session.user.id,
             email: session.user.email,
-            role: role,
-            credits: role === 'mentee' ? 3 : 0, // Give new mentees some starter credits
+            role: userRole,
+            credits: userRole === 'mentee' ? 3 : 0,
             created_at: new Date().toISOString(),
           })
 
         if (profileError) throw profileError
 
-        // Clear the role from sessionStorage as it's no longer needed
+        // Clear the role from sessionStorage
         sessionStorage.removeItem('selectedRole')
 
-        // Redirect based on role
-        navigate(`/${role}/dashboard`)
+        // Redirect to home - AppLayout will handle showing the correct dashboard
+        navigate('/')
       } catch (err) {
         console.error('Error setting up user profile:', err)
-        // Handle error appropriately
         navigate('/login')
       }
     }

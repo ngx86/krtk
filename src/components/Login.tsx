@@ -6,8 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
-const SITE_URL = 'https://krtk-git-feat-mentor-availability-hi-n-gstudios-projects.vercel.app';
-
 export function Login() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,7 +19,18 @@ export function Login() {
     // If no role is selected, redirect to splash screen
     if (!selectedRole) {
       navigate('/');
+      return;
     }
+
+    // Check if user is already logged in
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate('/');
+      }
+    };
+    
+    checkAuth();
   }, [selectedRole, navigate]);
 
   async function handleSignIn(e: React.FormEvent) {
@@ -32,6 +41,7 @@ export function Login() {
         text: 'Please select a role first',
         type: 'error'
       });
+      navigate('/');
       return;
     }
     
@@ -42,9 +52,9 @@ export function Login() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${SITE_URL}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
           data: {
-            role: selectedRole // Include role in the user metadata
+            role: selectedRole // This ensures the role is stored in user_metadata
           }
         }
       });

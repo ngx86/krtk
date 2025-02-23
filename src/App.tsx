@@ -1,5 +1,4 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { useAuth } from './contexts/AuthContext';
 import { Login } from './components/Login';
 import { SplashScreen } from './components/SplashScreen';
 import { AuthCallback } from './components/AuthCallback';
@@ -12,24 +11,12 @@ import { PrivateRoute } from './components/PrivateRoute';
 import { AppLayout } from './components/AppLayout';
 
 function App() {
-  const { loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Loading...</h2>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <ThemeProvider defaultTheme="dark" storageKey="app-theme">
       <div className="min-h-screen bg-background">
-        <AuthProvider>
-          <AppProvider>
-            <ErrorBoundary>
+        <ErrorBoundary>
+          <AuthProvider>
+            <AppProvider>
               <Router>
                 <Routes>
                   <Route path="/" element={<SplashScreen />} />
@@ -45,9 +32,9 @@ function App() {
                   />
                 </Routes>
               </Router>
-            </ErrorBoundary>
-          </AppProvider>
-        </AuthProvider>
+            </AppProvider>
+          </AuthProvider>
+        </ErrorBoundary>
       </div>
     </ThemeProvider>
   );

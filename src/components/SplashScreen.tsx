@@ -4,21 +4,31 @@ import { UserCircle, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
 
 export function SplashScreen() {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        // If user is authenticated, redirect to home
-        navigate('/', { replace: true });
+        const { data: profile } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profile) {
+          // Only redirect if we have both session and profile
+          navigate('/', { replace: true });
+        }
       }
     };
     
     checkAuth();
-  }, [navigate]);
+  }, [navigate, user]);
 
   const handleRoleSelect = (role: 'mentee' | 'mentor') => {
     // Store the selected role in sessionStorage

@@ -1,9 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 
 export function AuthCallback() {
   const navigate = useNavigate()
+  const [isProcessing, setIsProcessing] = useState(true)
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -62,22 +63,32 @@ export function AuthCallback() {
 
         console.log('Successfully set up user, redirecting to home...')
         // Redirect to home - AppLayout will handle showing the correct dashboard
+
+        // Add a small delay to ensure database writes are complete
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        
         navigate('/', { replace: true })
       } catch (err) {
-        console.error('Error setting up user profile:', err)
+        console.error('Error in auth callback:', err)
         navigate('/login')
+      } finally {
+        setIsProcessing(false)
       }
     }
 
     handleCallback()
   }, [navigate])
 
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <h2 className="text-xl font-semibold mb-2">Setting up your account...</h2>
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+  if (isProcessing) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Setting up your account...</h2>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
+
+  return null
 } 

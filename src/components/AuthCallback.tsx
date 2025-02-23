@@ -18,30 +18,39 @@ export function AuthCallback() {
         
         console.log('2. Got tokens:', { hasAccessToken: !!accessToken })
 
+        let currentSession = null
+
         if (accessToken) {
           console.log('3. Setting session...')
-          await supabase.auth.setSession({
+          const { error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken || ''
           })
+          
+          if (sessionError) throw sessionError;
+          
+          // Wait for session to be set
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Verify session was set
+          const { data: { session } } = await supabase.auth.getSession()
+          if (!session) throw new Error('Session not set after callback');
+          currentSession = session
         }
 
-        const { data: { session }, error } = await supabase.auth.getSession()
-        console.log('4. Session check:', { hasSession: !!session, error })
-        
-        if (error || !session) {
-          throw new Error('No session after auth')
+        if (!currentSession) {
+          throw new Error('No session available')
         }
 
-        const userRole = session.user.user_metadata.role
+        const userRole = currentSession.user.user_metadata.role
         console.log('5. User role from metadata:', userRole)
 
         // Update or create user profile
         const { error: profileError } = await supabase
           .from('users')
           .upsert({
-            id: session.user.id,
-            email: session.user.email,
+            id: currentSession.user.id,
+            email: currentSession.user.email,
             role: userRole,
             credits: userRole === 'mentee' ? 3 : 0,
             created_at: new Date().toISOString(),
@@ -55,7 +64,7 @@ export function AuthCallback() {
         const { data: profile, error: fetchError } = await supabase
           .from('users')
           .select('*')
-          .eq('id', session.user.id)
+          .eq('id', currentSession.user.id)
           .single()
         
         console.log('7. Profile verification:', { hasProfile: !!profile, error: fetchError })

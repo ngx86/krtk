@@ -24,50 +24,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<(User & { profile?: UserProfile }) | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch user profile from database
-  const fetchUserProfile = async (userId: string) => {
-    const { data: profile, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching user profile:', error);
-      return null;
-    }
-
-    return profile;
-  };
-
-  // Handle auth state change
-  const handleAuthStateChange = async (session: Session | null) => {
-    setSession(session);
-    
-    if (session?.user) {
-      const profile = await fetchUserProfile(session.user.id);
-      setUser({
-        ...session.user,
-        profile: profile
-      });
-    } else {
-      setUser(null);
-    }
-    
-    setLoading(false);
-  };
-
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      handleAuthStateChange(session);
+      console.log('AuthContext: Initial session check', { hasSession: !!session });
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
     });
 
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      handleAuthStateChange(session);
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('AuthContext: Auth state change', { event, hasSession: !!session });
+      
+      if (session?.user) {
+        // Get user profile when auth state changes
+        const { data: profile } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        setUser(profile ? { ...session.user, profile } : session.user);
+      } else {
+        setUser(null);
+      }
+      
+      setSession(session);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();

@@ -52,9 +52,9 @@ export function Login() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: 'https://krtk.vercel.app/auth/callback',
           data: {
-            role: selectedRole // This ensures the role is stored in user_metadata
+            role: selectedRole
           }
         }
       });

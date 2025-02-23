@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
@@ -14,6 +14,14 @@ import { RequestFeedbackPage } from './RequestFeedbackPage';
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, credits } = useApp();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+  }, [user, navigate]);
 
   if (!user) return null;
 

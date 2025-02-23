@@ -2,9 +2,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { UserCircle, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { supabase } from '../lib/supabaseClient';
 
 export function SplashScreen() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        // If user is authenticated, redirect to home
+        navigate('/', { replace: true });
+      }
+    };
+    
+    checkAuth();
+  }, [navigate]);
 
   const handleRoleSelect = (role: 'mentee' | 'mentor') => {
     // Store the selected role in sessionStorage

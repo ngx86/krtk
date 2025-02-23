@@ -1,22 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Menu, Bell, ChevronDown } from "lucide-react"
+import { Menu, Bell, LogOut } from "lucide-react"
+import { supabase } from '../lib/supabaseClient';
 
 interface HeaderProps {
   role: 'mentee' | 'mentor';
   credits: number;
-  setRole: (role: 'mentee' | 'mentor') => void;
   onMenuClick: () => void;
 }
 
-export function Header({ role, credits, setRole, onMenuClick }: HeaderProps) {
+export function Header({ role, credits, onMenuClick }: HeaderProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   
   const { notifications } = useApp();
   const unreadNotifications = notifications.filter((n: { read: boolean }) => !n.read).length;
@@ -34,6 +35,11 @@ export function Header({ role, credits, setRole, onMenuClick }: HeaderProps) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/');
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -110,27 +116,17 @@ export function Header({ role, credits, setRole, onMenuClick }: HeaderProps) {
                   {role === 'mentee' ? 'M' : 'T'}
                 </AvatarFallback>
               </Avatar>
-              <ChevronDown className="ml-2 h-4 w-4" />
             </Button>
 
             {showProfileMenu && (
               <div className="absolute right-0 mt-2 w-48 rounded-md bg-popover text-popover-foreground shadow-md ring-1 ring-black ring-opacity-5">
                 <div className="py-1">
                   <button
-                    onClick={() => setRole('mentee')}
-                    className={`w-full text-left px-4 py-2 text-sm ${
-                      role === 'mentee' ? 'bg-accent text-accent-foreground' : 'hover:bg-accent hover:text-accent-foreground'
-                    }`}
+                    onClick={handleSignOut}
+                    className="w-full text-left px-4 py-2 text-sm flex items-center space-x-2 hover:bg-accent hover:text-accent-foreground"
                   >
-                    Switch to Mentee
-                  </button>
-                  <button
-                    onClick={() => setRole('mentor')}
-                    className={`w-full text-left px-4 py-2 text-sm ${
-                      role === 'mentor' ? 'bg-accent text-accent-foreground' : 'hover:bg-accent hover:text-accent-foreground'
-                    }`}
-                  >
-                    Switch to Mentor
+                    <LogOut className="h-4 w-4" />
+                    <span>Sign Out</span>
                   </button>
                 </div>
               </div>

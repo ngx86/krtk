@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { Login } from './components/Login';
+import { SplashScreen } from './components/SplashScreen';
 import { AuthCallback } from './components/AuthCallback';
 import './index.css';
 import { AppProvider } from './contexts/AppContext';
@@ -31,8 +32,9 @@ function App() {
             <ErrorBoundary>
               <Router>
                 <Routes>
-                  <Route path="/auth/callback" element={<AuthCallback />} />
+                  <Route path="/" element={<SplashScreen />} />
                   <Route path="/login" element={<Login />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route
                     path="/*"
                     element={

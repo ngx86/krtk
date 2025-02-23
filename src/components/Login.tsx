@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,9 +12,28 @@ export function Login() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'error' | 'success' } | null>(null);
+  const navigate = useNavigate();
+  
+  // Get the selected role from sessionStorage
+  const selectedRole = sessionStorage.getItem('selectedRole') as 'mentee' | 'mentor' | null;
+
+  useEffect(() => {
+    // If no role is selected, redirect to splash screen
+    if (!selectedRole) {
+      navigate('/');
+    }
+  }, [selectedRole, navigate]);
 
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
+    
+    if (!selectedRole) {
+      setMessage({
+        text: 'Please select a role first',
+        type: 'error'
+      });
+      return;
+    }
     
     try {
       setLoading(true);
@@ -23,7 +43,9 @@ export function Login() {
         email,
         options: {
           emailRedirectTo: `${SITE_URL}/auth/callback`,
-          shouldCreateUser: true, // This will create a new user if they don't exist
+          data: {
+            role: selectedRole // Include role in the user metadata
+          }
         }
       });
 
@@ -50,7 +72,9 @@ export function Login() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl text-center">Welcome</CardTitle>
           <CardDescription className="text-center">
-            Enter your email to sign in or create an account
+            {selectedRole === 'mentee' 
+              ? 'Sign in to get feedback on your designs'
+              : 'Sign in to provide feedback to others'}
           </CardDescription>
         </CardHeader>
         <CardContent>

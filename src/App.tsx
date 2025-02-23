@@ -27,7 +27,7 @@ function App() {
                   <Route path="/login" element={<Login />} />
                   <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/role-selection" element={<RoleSelection />} />
-                  <Route path="/*" element={<ProtectedRoute />} />
+                  <Route path="/dashboard" element={<ProtectedRoute />} />
                 </Routes>
               </Router>
             </AppProvider>

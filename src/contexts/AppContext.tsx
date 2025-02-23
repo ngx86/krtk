@@ -75,11 +75,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           .from('users')
           .select('*')
           .eq('id', authUser.id)
-          .single();
+          .maybeSingle();
 
         console.log('AppContext: Loaded profile', { 
           hasProfile: !!profile,
-          error 
+          error,
+          userId: authUser.id 
         });
 
         if (error) throw error;
@@ -92,6 +93,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             credits: profile.credits
           });
           setCredits(profile.credits || 0);
+        } else {
+          setUser(null);
         }
       } catch (error) {
         console.error('Error loading user data:', error);

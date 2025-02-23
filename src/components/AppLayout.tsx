@@ -10,11 +10,14 @@ import { CreditsPage } from './CreditsPage';
 import { SettingsPage } from './SettingsPage';
 import { NotificationsPage } from './NotificationsPage';
 import { RequestFeedbackPage } from './RequestFeedbackPage';
+import { useAuth } from '../contexts/AuthContext';
+import { LoadingSpinner } from './LoadingSpinner';
 
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, credits } = useApp();
   const navigate = useNavigate();
+  const { loading } = useAuth();
 
   useEffect(() => {
     console.log('AppLayout: User state:', { 
@@ -29,6 +32,10 @@ export function AppLayout() {
       return;
     }
   }, [user, navigate]);
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
 
   if (!user) return null;
 

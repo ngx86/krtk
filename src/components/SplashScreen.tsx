@@ -6,32 +6,42 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 
 export function SplashScreen() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        // Check if user has a role
-        const { data: profile } = await supabase
-          .from('users')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
+      try {
+        if (authLoading) return;
 
-        if (profile?.role) {
-          navigate('/', { replace: true });
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('SplashScreen: Session check', { hasSession: !!session });
+        
+        if (session?.user) {
+          // Check if user has a role
+          const { data: profile } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+
+          console.log('SplashScreen: Profile check', { hasProfile: !!profile, role: profile?.role });
+
+          if (profile?.role) {
+            navigate('/dashboard', { replace: true });
+          } else {
+            navigate('/role-selection', { replace: true });
+          }
         } else {
-          navigate('/role-selection', { replace: true });
+          navigate('/login', { replace: true });
         }
-      } else {
-        navigate('/login');
+      } catch (error) {
+        console.error('SplashScreen: Error', error);
+        navigate('/login', { replace: true });
       }
     };
     
     checkAuth();
-  }, [navigate, user]);
+  }, [navigate, user, authLoading]);
 
   return <LoadingSpinner />;
 } 

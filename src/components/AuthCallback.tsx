@@ -7,6 +7,20 @@ export function AuthCallback() {
 
   useEffect(() => {
     const handleCallback = async () => {
+      // First handle the URL hash if present
+      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+      const accessToken = hashParams.get('access_token')
+      const refreshToken = hashParams.get('refresh_token')
+
+      if (accessToken) {
+        // Set the session with the tokens from the URL
+        await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken || ''
+        })
+      }
+
+      // Then get the current session
       const { data: { session }, error } = await supabase.auth.getSession()
       
       if (error || !session) {
@@ -40,7 +54,7 @@ export function AuthCallback() {
         sessionStorage.removeItem('selectedRole')
 
         // Redirect to home - AppLayout will handle showing the correct dashboard
-        navigate('/')
+        navigate('/', { replace: true })
       } catch (err) {
         console.error('Error setting up user profile:', err)
         navigate('/login')

@@ -9,9 +9,7 @@ import {
   LayoutDashboard,
   Users,
   CreditCard,
-  History,
   Settings,
-  DollarSign,
 } from "lucide-react"
 
 interface SidebarProps {

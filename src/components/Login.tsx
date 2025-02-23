@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,40 +9,9 @@ export function Login() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'error' | 'success' } | null>(null);
-  const navigate = useNavigate();
-  
-  // Get the selected role from sessionStorage
-  const selectedRole = sessionStorage.getItem('selectedRole') as 'mentee' | 'mentor' | null;
-
-  useEffect(() => {
-    // If no role is selected, redirect to splash screen
-    if (!selectedRole) {
-      navigate('/');
-      return;
-    }
-
-    // Check if user is already logged in
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate('/');
-      }
-    };
-    
-    checkAuth();
-  }, [selectedRole, navigate]);
 
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
-    
-    if (!selectedRole) {
-      setMessage({
-        text: 'Please select a role first',
-        type: 'error'
-      });
-      navigate('/');
-      return;
-    }
     
     try {
       setLoading(true);
@@ -52,18 +20,14 @@ export function Login() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-          shouldCreateUser: true,
-          data: {
-            role: selectedRole
-          }
+          emailRedirectTo: `${window.location.origin}/auth/callback`
         }
       });
 
       if (error) throw error;
 
       setMessage({
-        text: 'Check your email for the login link. If it opens in a new window, copy the link and paste it in this window instead.',
+        text: 'Check your email for the login link!',
         type: 'success'
       });
       
@@ -97,9 +61,7 @@ export function Login() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl text-center">Welcome</CardTitle>
           <CardDescription className="text-center">
-            {selectedRole === 'mentee' 
-              ? 'Sign in to get feedback on your designs'
-              : 'Sign in to provide feedback to others'}
+            Sign in to get started
           </CardDescription>
         </CardHeader>
         <CardContent>

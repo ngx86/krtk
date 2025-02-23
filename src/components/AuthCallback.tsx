@@ -16,12 +16,7 @@ export function AuthCallback() {
         const accessToken = hashParams.get('access_token')
         const refreshToken = hashParams.get('refresh_token')
         
-        console.log('2. Got tokens:', { hasAccessToken: !!accessToken })
-
-        let currentSession = null
-
         if (accessToken) {
-          console.log('3. Setting session...')
           const { error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken || ''
@@ -29,56 +24,25 @@ export function AuthCallback() {
           
           if (sessionError) throw sessionError;
           
-          // Wait for session to be set
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Verify session was set
+          // Get session
           const { data: { session } } = await supabase.auth.getSession()
-          if (!session) throw new Error('Session not set after callback');
-          currentSession = session
+          if (!session) throw new Error('No session after auth');
+
+          // Check if user already has a role
+          const { data: profile } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profile?.role) {
+            // User already has a role, go to dashboard
+            navigate('/', { replace: true });
+          } else {
+            // User needs to select a role
+            navigate('/role-selection', { replace: true });
+          }
         }
-
-        if (!currentSession) {
-          throw new Error('No session available')
-        }
-
-        const userRole = currentSession.user.user_metadata.role
-        console.log('5. User role from metadata:', userRole)
-
-        // Update or create user profile
-        const { error: profileError } = await supabase
-          .from('users')
-          .upsert({
-            id: currentSession.user.id,
-            email: currentSession.user.email,
-            role: userRole,
-            credits: userRole === 'mentee' ? 3 : 0,
-            created_at: new Date().toISOString(),
-          })
-        
-        console.log('6. Profile upsert:', { error: profileError })
-
-        if (profileError) throw profileError
-
-        // Verify profile was created
-        const { data: profile, error: fetchError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', currentSession.user.id)
-          .single()
-        
-        console.log('7. Profile verification:', { hasProfile: !!profile, error: fetchError })
-
-        if (!profile) throw new Error('Profile not found after creation')
-
-        sessionStorage.removeItem('selectedRole')
-        
-        // Add longer delay and more explicit logging
-        console.log('8. Waiting to ensure DB consistency...')
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        
-        console.log('9. Redirecting to dashboard...')
-        navigate('/', { replace: true })
       } catch (err) {
         console.error('AuthCallback error:', err)
         navigate('/login')
@@ -91,14 +55,7 @@ export function AuthCallback() {
   }, [navigate])
 
   if (isProcessing) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Setting up your account...</h2>
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-        </div>
-      </div>
-    )
+    return <div>Processing authentication...</div>
   }
 
   return null

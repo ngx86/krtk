@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
 import { useAuth } from './AuthContext';
 
 interface OnboardingContextType {
@@ -13,7 +12,7 @@ interface OnboardingContextType {
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
 
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, userRole, loading: authLoading, setUserRole } = useAuth();
   const [loading, setLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,28 +24,15 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    
     try {
       console.log('OnboardingContext: Checking role for user', user.id);
-      const { data, error } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error('OnboardingContext: Error checking role', error);
-        // Log the error but don't expose technical details to the user
-        setIsComplete(false);
-        return;
-      }
-
-      const hasRole = !!data?.role;
+      
+      // Use the userRole from AuthContext
+      const hasRole = !!userRole;
+      
       console.log('OnboardingContext: Role check result', { 
         hasRole,
-        role: data?.role,
+        role: userRole,
         userId: user.id 
       });
 
@@ -54,15 +40,15 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     } catch (error) {
       console.error('OnboardingContext: Error checking onboarding:', error);
       setIsComplete(false);
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Check if user has completed onboarding when user changes
+  // Check if user has completed onboarding when user or userRole changes
   useEffect(() => {
-    checkOnboardingStatus();
-  }, [user]);
+    if (!authLoading) {
+      checkOnboardingStatus();
+    }
+  }, [user, userRole, authLoading]);
 
   async function setRole(role: 'mentor' | 'mentee'): Promise<void> {
     if (!user?.id) {
@@ -76,37 +62,19 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     setError(null);
     
     try {
-      // Create a minimal user object without the updated_at field
-      const userData = {
-        id: user.id,
-        email: user.email || '',
-        role,
-        credits: role === 'mentee' ? 3 : 0,
-        created_at: new Date().toISOString()
-      };
-      
-      console.log('OnboardingContext: Upserting user with data', userData);
-      
-      // Upsert the user record
-      const { error: upsertError } = await supabase
-        .from('users')
-        .upsert(userData);
-
-      if (upsertError) {
-        console.error('OnboardingContext: Error setting role', upsertError);
-        
-        // Log the actual error for debugging but show a user-friendly message
-        setError('We encountered an issue setting your role. Please try again later or contact support.');
-        
-        // Still throw an error for the component to handle, but with a user-friendly message
-        throw new Error('We encountered an issue setting your role. Please try again later.');
-      }
+      // Use the setUserRole function from AuthContext
+      await setUserRole(role);
       
       console.log(`OnboardingContext: Successfully set role to ${role} for user ${user.id}`);
       setIsComplete(true);
     } catch (error) {
       console.error('OnboardingContext: Error setting role:', error);
-      throw error;
+      
+      // Log the actual error for debugging but show a user-friendly message
+      setError('We encountered an issue setting your role. Please try again later or contact support.');
+      
+      // Still throw an error for the component to handle, but with a user-friendly message
+      throw new Error('We encountered an issue setting your role. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -115,7 +83,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const value = {
     setRole,
     isComplete,
-    loading,
+    loading: loading || authLoading,
     error,
     checkOnboardingStatus
   };

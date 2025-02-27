@@ -31,7 +31,14 @@ VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-4. Start the development server
+4. Set up the database in Supabase:
+   - Go to your Supabase project dashboard
+   - Navigate to the SQL Editor
+   - Create a new query
+   - Copy the contents of `database_setup.sql` from this repository
+   - Run the query to set up all necessary tables and policies
+
+5. Start the development server
 ```bash
 npm run dev
 # or
@@ -45,12 +52,44 @@ The application uses Supabase Authentication with:
 
 ### Authentication Flow
 
-1. User enters their email on the login page
-2. User receives a magic link in their email
-3. Clicking the link redirects to `/auth/callback`
-4. The callback page verifies the session and checks if the user has a role
-5. If no role is set, user is redirected to role selection
-6. After role selection, user is redirected to the dashboard
+The application uses a streamlined authentication flow with Supabase:
+
+1. **Login**: Users sign in with email magic links through Supabase Auth.
+
+2. **Auth Callback**: After successful authentication, users are redirected to the auth callback page which:
+   - Verifies the authentication tokens
+   - Checks if the user exists in the database
+   - Checks if the user has selected a role
+   - Redirects to the appropriate page based on user status
+
+3. **Role Selection**: New users are prompted to select a role (Mentor or Feedback Seeker).
+   - The role is stored in the database
+   - The role is also cached in the AuthContext for quick access
+
+4. **Dashboard Access**: Once a user has a role, they can access the dashboard and role-specific features.
+
+### Key Components
+
+- **AuthContext**: Manages authentication state, user information, and role data
+- **OnboardingContext**: Handles the role selection process
+- **Protected Routes**: Ensure users can only access appropriate pages based on their authentication status and role
+
+### Database Structure
+
+The users table in the database stores essential user information:
+
+```sql
+CREATE TABLE public.users (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  role TEXT,
+  credits INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+For detailed setup instructions, see the "Set up the database in Supabase" section above.
 
 ### URL Configuration
 

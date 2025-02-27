@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 
 export function AuthCallback() {
   const navigate = useNavigate()
-  const { checkUserInDatabase } = useAuth()
+  const { checkUserInDatabase, refreshUserRole } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string>('Processing authentication...')
 
@@ -41,13 +41,16 @@ export function AuthCallback() {
             
             // Check if user has a profile
             setStatus('Checking user profile...')
-            const userExists = await checkUserInDatabase(session.user.id);
+            const { exists, role } = await checkUserInDatabase(session.user.id);
+            
+            // Refresh user role in context
+            await refreshUserRole();
               
-            if (userExists) {
-              console.log('Auth callback: User exists in database, redirecting to dashboard');
+            if (exists && role) {
+              console.log('Auth callback: User exists in database with role, redirecting to dashboard');
               navigate('/dashboard', { replace: true });
             } else {
-              console.log('Auth callback: User does not exist in database, redirecting to role selection');
+              console.log('Auth callback: User does not exist in database or has no role, redirecting to role selection');
               navigate('/role-selection', { replace: true });
             }
             return;
@@ -82,14 +85,17 @@ export function AuthCallback() {
 
         // Check if user has a profile in the database
         setStatus('Checking your profile...')
-        const userExists = await checkUserInDatabase(session.user.id);
+        const { exists, role } = await checkUserInDatabase(session.user.id);
+        
+        // Refresh user role in context
+        await refreshUserRole();
           
-        // Redirect based on user existence
-        if (userExists) {
-          console.log('Auth callback: User exists in database, redirecting to dashboard');
+        // Redirect based on user existence and role
+        if (exists && role) {
+          console.log('Auth callback: User exists in database with role, redirecting to dashboard');
           navigate('/dashboard', { replace: true });
         } else {
-          console.log('Auth callback: User does not exist in database, redirecting to role selection');
+          console.log('Auth callback: User does not exist in database or has no role, redirecting to role selection');
           navigate('/role-selection', { replace: true });
         }
       } catch (err) {
@@ -101,7 +107,7 @@ export function AuthCallback() {
     };
 
     handleCallback();
-  }, [navigate, checkUserInDatabase]);
+  }, [navigate, checkUserInDatabase, refreshUserRole]);
 
   if (error) {
     return (

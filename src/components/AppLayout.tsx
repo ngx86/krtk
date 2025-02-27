@@ -16,45 +16,45 @@ import { LoadingSpinner } from './LoadingSpinner';
 
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, credits } = useApp();
+  const { credits } = useApp();
+  const { user, userRole, loading } = useAuth();
   const navigate = useNavigate();
-  const { loading } = useAuth();
 
   useEffect(() => {
     console.log('AppLayout: User state:', { 
       hasUser: !!user,
-      role: user?.role,
+      role: userRole,
       id: user?.id
     });
     
-    if (!user) {
-      console.log('AppLayout: No user, redirecting to login');
+    if (!user || !userRole) {
+      console.log('AppLayout: No user or role, redirecting to login');
       navigate('/login');
       return;
     }
-  }, [user, navigate]);
+  }, [user, userRole, navigate]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner />
+        <LoadingSpinner fullScreen={false} />
         <p className="ml-2 text-muted-foreground">Loading your dashboard...</p>
       </div>
     );
   }
 
-  if (!user) return null;
+  if (!user || !userRole) return null;
 
   return (
     <div className="min-h-screen bg-background">
       <Header 
-        role={user.role}
+        role={userRole}
         credits={credits}
         onMenuClick={() => setSidebarOpen(true)}
       />
       
       <Sidebar
-        role={user.role}
+        role={userRole}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -67,7 +67,7 @@ export function AppLayout() {
             <Route path="/notifications" element={<NotificationsPage />} />
             
             {/* Role-specific routes */}
-            {user.role === 'mentee' ? (
+            {userRole === 'mentee' ? (
               <>
                 <Route index element={<MenteeDashboard />} />
                 <Route path="/mentors" element={<MentorsPage />} />

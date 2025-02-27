@@ -8,7 +8,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { ThemeProvider } from './components/theme-provider';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AppLayout } from './components/AppLayout';
-import { OnboardingProvider, useOnboarding } from './contexts/OnboardingContext';
+import { OnboardingProvider } from './contexts/OnboardingContext';
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LoadingSpinner } from './components/LoadingSpinner';
@@ -42,8 +42,7 @@ function App() {
 
 // Protect the role selection page to ensure only authenticated users can access it
 function ProtectedRoleSelection() {
-  const { user, loading } = useAuth();
-  const { isComplete } = useOnboarding();
+  const { user, userRole, loading } = useAuth();
   const navigate = useNavigate();
   const [checkingStatus, setCheckingStatus] = useState(true);
 
@@ -52,7 +51,7 @@ function ProtectedRoleSelection() {
       try {
         console.log('ProtectedRoleSelection: Checking status', { 
           hasUser: !!user,
-          isComplete,
+          userRole,
           loading
         });
         
@@ -65,8 +64,8 @@ function ProtectedRoleSelection() {
           return;
         }
         
-        if (isComplete) {
-          console.log('ProtectedRoleSelection: Onboarding already complete, redirecting to dashboard');
+        if (userRole) {
+          console.log('ProtectedRoleSelection: User already has role, redirecting to dashboard');
           navigate('/dashboard', { replace: true });
           return;
         }
@@ -79,24 +78,23 @@ function ProtectedRoleSelection() {
     };
     
     checkStatus();
-  }, [user, loading, isComplete, navigate]);
+  }, [user, loading, userRole, navigate]);
 
   if (loading || checkingStatus) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner />
+        <LoadingSpinner fullScreen={false} />
         <p className="ml-2 text-muted-foreground">Checking authentication...</p>
       </div>
     );
   }
 
-  // Only render the role selection if user is authenticated and onboarding is not complete
-  return user && !isComplete ? <RoleSelection /> : null;
+  // Only render the role selection if user is authenticated and has no role yet
+  return user && !userRole ? <RoleSelection /> : null;
 }
 
 function ProtectedRoute() {
-  const { user, loading } = useAuth();
-  const { isComplete, checkOnboardingStatus } = useOnboarding();
+  const { user, userRole, loading, refreshUserRole } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [checkingStatus, setCheckingStatus] = useState(true);
@@ -106,7 +104,7 @@ function ProtectedRoute() {
       try {
         console.log('ProtectedRoute: Auth state check', { 
           hasUser: !!user,
-          isComplete,
+          userRole,
           loading,
           path: location.pathname
         });
@@ -120,11 +118,11 @@ function ProtectedRoute() {
           return;
         }
         
-        // Refresh onboarding status to ensure it's up to date
-        await checkOnboardingStatus();
+        // Refresh user role to ensure it's up to date
+        await refreshUserRole();
         
-        if (!isComplete) {
-          console.log('ProtectedRoute: Onboarding incomplete, redirecting to role selection');
+        if (!userRole) {
+          console.log('ProtectedRoute: User has no role, redirecting to role selection');
           navigate('/role-selection', { replace: true });
           return;
         }
@@ -137,19 +135,19 @@ function ProtectedRoute() {
     };
     
     checkStatus();
-  }, [user, loading, isComplete, navigate, location, checkOnboardingStatus]);
+  }, [user, loading, userRole, navigate, location, refreshUserRole]);
 
   if (loading || checkingStatus) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner />
+        <LoadingSpinner fullScreen={false} />
         <p className="ml-2 text-muted-foreground">Loading your dashboard...</p>
       </div>
     );
   }
 
-  // Only render the app layout if user is authenticated and onboarding is complete
-  return user && isComplete ? <AppLayout /> : null;
+  // Only render the app layout if user is authenticated and has a role
+  return user && userRole ? <AppLayout /> : null;
 }
 
 export default App; 

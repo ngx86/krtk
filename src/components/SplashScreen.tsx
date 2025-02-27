@@ -1,37 +1,36 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { LoadingSpinner } from "./LoadingSpinner";
 
 export function SplashScreen() {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, userRole, loading: authLoading, refreshUserRole } = useAuth();
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
         if (authLoading) return;
 
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log('SplashScreen: Session check', { hasSession: !!session });
+        console.log('SplashScreen: Auth check', { 
+          hasUser: !!user,
+          userRole,
+          authLoading
+        });
+
+        // Refresh user role to ensure it's up to date
+        await refreshUserRole();
         
-        if (session?.user) {
-          // Check if user has a role
-          const { data: profile } = await supabase
-            .from('users')
-            .select('role')
-            .eq('id', session.user.id)
-            .single();
-
-          console.log('SplashScreen: Profile check', { hasProfile: !!profile, role: profile?.role });
-
-          if (profile?.role) {
+        if (user) {
+          if (userRole) {
+            console.log('SplashScreen: User has role, redirecting to dashboard');
             navigate('/dashboard', { replace: true });
           } else {
+            console.log('SplashScreen: User has no role, redirecting to role selection');
             navigate('/role-selection', { replace: true });
           }
         } else {
+          console.log('SplashScreen: No user, redirecting to login');
           navigate('/login', { replace: true });
         }
       } catch (error) {
@@ -41,7 +40,12 @@ export function SplashScreen() {
     };
     
     checkAuth();
-  }, [navigate, user, authLoading]);
+  }, [navigate, user, userRole, authLoading, refreshUserRole]);
 
-  return <LoadingSpinner />;
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen">
+      <LoadingSpinner fullScreen={false} />
+      <p className="mt-4 text-muted-foreground">Loading...</p>
+    </div>
+  );
 } 

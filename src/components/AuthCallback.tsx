@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { LoadingSpinner } from './LoadingSpinner'
+import { useAuth } from '../contexts/AuthContext'
 
 export function AuthCallback() {
   const navigate = useNavigate()
+  const { checkUserInDatabase } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string>('Processing authentication...')
 
@@ -39,20 +41,13 @@ export function AuthCallback() {
             
             // Check if user has a profile
             setStatus('Checking user profile...')
-            const { data: profile } = await supabase
-              .from('users')
-              .select('role')
-              .eq('id', session.user.id)
-              .maybeSingle();
+            const userExists = await checkUserInDatabase(session.user.id);
               
-            console.log('Auth callback: Profile check', { 
-              hasProfile: !!profile,
-              role: profile?.role 
-            });
-            
-            if (profile?.role) {
+            if (userExists) {
+              console.log('Auth callback: User exists in database, redirecting to dashboard');
               navigate('/dashboard', { replace: true });
             } else {
+              console.log('Auth callback: User does not exist in database, redirecting to role selection');
               navigate('/role-selection', { replace: true });
             }
             return;
@@ -87,25 +82,14 @@ export function AuthCallback() {
 
         // Check if user has a profile in the database
         setStatus('Checking your profile...')
-        const { data: profile, error: profileError } = await supabase
-          .from('users')
-          .select('role')
-          .eq('id', session.user.id)
-          .maybeSingle();
+        const userExists = await checkUserInDatabase(session.user.id);
           
-        if (profileError) {
-          console.error('Auth callback: Profile error', profileError);
-        }
-        
-        console.log('Auth callback: Profile check', { 
-          hasProfile: !!profile,
-          role: profile?.role 
-        });
-
-        // Redirect based on role status
-        if (profile?.role) {
+        // Redirect based on user existence
+        if (userExists) {
+          console.log('Auth callback: User exists in database, redirecting to dashboard');
           navigate('/dashboard', { replace: true });
         } else {
+          console.log('Auth callback: User does not exist in database, redirecting to role selection');
           navigate('/role-selection', { replace: true });
         }
       } catch (err) {
@@ -117,7 +101,7 @@ export function AuthCallback() {
     };
 
     handleCallback();
-  }, [navigate]);
+  }, [navigate, checkUserInDatabase]);
 
   if (error) {
     return (

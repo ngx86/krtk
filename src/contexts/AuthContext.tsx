@@ -8,6 +8,7 @@ interface AuthContextType {
   loading: boolean;
   signInWithEmail: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
+  checkUserInDatabase: (userId: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,15 +20,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('AuthContext: Initial session check', { 
-        hasSession: !!session,
-        userId: session?.user?.id
-      });
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    const initializeAuth = async () => {
+      try {
+        setLoading(true);
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        console.log('AuthContext: Initial session check', { 
+          hasSession: !!session,
+          userId: session?.user?.id
+        });
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+      } catch (error) {
+        console.error('AuthContext: Error getting initial session', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -37,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           hasSession: !!session,
           userId: session?.user?.id
         });
+        
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -90,13 +103,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Check if user exists in the database
+  const checkUserInDatabase = async (userId: string): Promise<boolean> => {
+    try {
+      console.log('AuthContext: Checking if user exists in database', userId);
+      
+      const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
+      
+      if (error) {
+        // If the error is about the table not existing, return false
+        if (error.message.includes('relation "users" does not exist')) {
+          console.log('AuthContext: Users table does not exist');
+          return false;
+        }
+        
+        console.error('AuthContext: Error checking user in database', error);
+        throw error;
+      }
+      
+      const exists = !!data;
+      console.log('AuthContext: User exists in database:', exists);
+      return exists;
+    } catch (error) {
+      console.error('AuthContext: Error in checkUserInDatabase', error);
+      return false;
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       session,
       user,
       loading,
       signInWithEmail,
-      signOut
+      signOut,
+      checkUserInDatabase
     }}>
       {children}
     </AuthContext.Provider>

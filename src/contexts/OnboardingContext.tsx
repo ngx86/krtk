@@ -6,6 +6,7 @@ interface OnboardingContextType {
   setRole: (role: 'mentor' | 'mentee') => Promise<void>;
   isComplete: boolean;
   loading: boolean;
+  error: string | null;
   checkOnboardingStatus: () => Promise<void>;
 }
 
@@ -15,6 +16,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const checkOnboardingStatus = async (): Promise<void> => {
     if (!user?.id) {
@@ -24,6 +26,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     }
 
     setLoading(true);
+    setError(null);
+    
     try {
       console.log('OnboardingContext: Checking role for user', user.id);
       const { data, error } = await supabase
@@ -34,7 +38,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
       if (error) {
         console.error('OnboardingContext: Error checking role', error);
-        throw error;
+        // Log the error but don't expose technical details to the user
+        setIsComplete(false);
+        return;
       }
 
       const hasRole = !!data?.role;
@@ -61,40 +67,39 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   async function setRole(role: 'mentor' | 'mentee'): Promise<void> {
     if (!user?.id) {
       console.error('OnboardingContext: Cannot set role, no user ID');
+      setError('Please sign in to continue.');
       throw new Error('User not authenticated');
     }
     
     console.log(`OnboardingContext: Setting role to ${role} for user ${user.id}`);
     setLoading(true);
+    setError(null);
     
     try {
-      // First check if user already exists in the database
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('id', user.id)
-        .maybeSingle();
+      // Create a minimal user object without the updated_at field
+      const userData = {
+        id: user.id,
+        email: user.email || '',
+        role,
+        credits: role === 'mentee' ? 3 : 0,
+        created_at: new Date().toISOString()
+      };
       
-      console.log('OnboardingContext: User exists check', { 
-        exists: !!existingUser,
-        userId: user.id 
-      });
+      console.log('OnboardingContext: Upserting user with data', userData);
       
       // Upsert the user record
-      const { error } = await supabase
+      const { error: upsertError } = await supabase
         .from('users')
-        .upsert({
-          id: user.id,
-          email: user.email,
-          role,
-          credits: role === 'mentee' ? 3 : 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
+        .upsert(userData);
 
-      if (error) {
-        console.error('OnboardingContext: Error setting role', error);
-        throw error;
+      if (upsertError) {
+        console.error('OnboardingContext: Error setting role', upsertError);
+        
+        // Log the actual error for debugging but show a user-friendly message
+        setError('We encountered an issue setting your role. Please try again later or contact support.');
+        
+        // Still throw an error for the component to handle, but with a user-friendly message
+        throw new Error('We encountered an issue setting your role. Please try again later.');
       }
       
       console.log(`OnboardingContext: Successfully set role to ${role} for user ${user.id}`);
@@ -111,6 +116,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     setRole,
     isComplete,
     loading,
+    error,
     checkOnboardingStatus
   };
 

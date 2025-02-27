@@ -4,9 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { UserCircle, Users } from "lucide-react";
 import { useState } from 'react';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
+import { LoadingSpinner } from './LoadingSpinner';
 
 export function RoleSelection() {
-  const { setRole, loading: onboardingLoading } = useOnboarding();
+  const { setRole, loading: onboardingLoading, error: onboardingError } = useOnboarding();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -20,14 +23,24 @@ export function RoleSelection() {
       console.log('RoleSelection: Role set successfully, navigating to dashboard');
       navigate('/dashboard', { replace: true });
     } catch (error) {
-      console.error('Error setting role:', error);
-      setError('Failed to set role. Please try again.');
+      console.error('RoleSelection: Error setting role:', error);
+      let errorMessage = 'Failed to set role. Please try again.';
+      
+      // Extract more detailed error information if available
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
   const isLoading = loading || onboardingLoading;
+  // Use either the local error or the error from the onboarding context
+  const displayError = error || onboardingError;
 
   return (
     <div className="container flex items-center justify-center min-h-screen">
@@ -39,9 +52,13 @@ export function RoleSelection() {
           </CardDescription>
         </CardHeader>
         
-        {error && (
-          <div className="mx-6 mb-2 p-3 bg-destructive/10 text-destructive rounded-md text-sm">
-            {error}
+        {displayError && (
+          <div className="mx-6 mb-4">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{displayError}</AlertDescription>
+            </Alert>
           </div>
         )}
         
@@ -59,7 +76,14 @@ export function RoleSelection() {
                 </p>
               </div>
               <Button disabled={isLoading} className="w-full">
-                {isLoading ? 'Setting up...' : 'Select'}
+                {isLoading ? (
+                  <span className="flex items-center">
+                    <LoadingSpinner />
+                    <span className="ml-2">Setting up...</span>
+                  </span>
+                ) : (
+                  'Select'
+                )}
               </Button>
             </CardContent>
           </Card>
@@ -77,7 +101,14 @@ export function RoleSelection() {
                 </p>
               </div>
               <Button disabled={isLoading} className="w-full">
-                {isLoading ? 'Setting up...' : 'Select'}
+                {isLoading ? (
+                  <span className="flex items-center">
+                    <LoadingSpinner />
+                    <span className="ml-2">Setting up...</span>
+                  </span>
+                ) : (
+                  'Select'
+                )}
               </Button>
             </CardContent>
           </Card>

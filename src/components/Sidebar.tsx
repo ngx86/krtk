@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -10,6 +10,8 @@ import {
   Users,
   CreditCard,
   Settings,
+  Bell,
+  FileText
 } from "lucide-react"
 
 interface SidebarProps {
@@ -20,20 +22,31 @@ interface SidebarProps {
 
 const sidebarLinks = {
   mentee: [
-    { href: "/", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/mentors", label: "Find Mentors", icon: Users },
-    { href: "/credits", label: "Credits", icon: CreditCard },
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dashboard/mentors", label: "Find Mentors", icon: Users },
+    { href: "/dashboard/credits", label: "Credits", icon: CreditCard },
+    { href: "/dashboard/request-feedback", label: "Request Feedback", icon: FileText },
   ],
   mentor: [
-    { href: "/", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   ],
   common: [
-    { href: "/settings", label: "Settings", icon: Settings },
+    { href: "/dashboard/notifications", label: "Notifications", icon: Bell },
+    { href: "/dashboard/settings", label: "Settings", icon: Settings },
   ]
 };
 
 export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
+  const location = useLocation();
   const links = [...sidebarLinks[role], ...sidebarLinks.common];
+
+  // Check if the current path matches or starts with the link path
+  const isActive = (href: string) => {
+    if (href === '/dashboard') {
+      return location.pathname === '/dashboard' || location.pathname === '/dashboard/';
+    }
+    return location.pathname.startsWith(href);
+  };
 
   const SidebarContent = () => (
     <div className="h-full flex flex-col">
@@ -48,12 +61,12 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
         {links.map((link) => {
           const Icon = link.icon;
           return (
-            <Link key={link.href} to={link.href}>
+            <Link key={link.href} to={link.href} onClick={onClose}>
               <Button
                 variant="ghost"
                 className={cn(
                   "w-full justify-start gap-2",
-                  location.pathname === link.href && "bg-accent"
+                  isActive(link.href) && "bg-accent text-accent-foreground"
                 )}
               >
                 <Icon className="h-5 w-5" />

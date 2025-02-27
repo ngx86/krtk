@@ -10,6 +10,7 @@ import { CreditsPage } from './CreditsPage';
 import { SettingsPage } from './SettingsPage';
 import { NotificationsPage } from './NotificationsPage';
 import { RequestFeedbackPage } from './RequestFeedbackPage';
+import { FeedbackHistoryPage } from './FeedbackHistoryPage';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from './LoadingSpinner';
 
@@ -34,24 +35,15 @@ export function AppLayout() {
   }, [user, navigate]);
 
   if (loading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner />
+        <p className="ml-2 text-muted-foreground">Loading your dashboard...</p>
+      </div>
+    );
   }
 
   if (!user) return null;
-
-  // Define available routes based on role
-  const routes = user.role === 'mentee' ? (
-    <>
-      <Route path="/" element={<MenteeDashboard />} />
-      <Route path="/mentors" element={<MentorsPage />} />
-      <Route path="/credits" element={<CreditsPage />} />
-      <Route path="/request-feedback" element={<RequestFeedbackPage />} />
-    </>
-  ) : (
-    <>
-      <Route path="/" element={<MentorDashboard />} />
-    </>
-  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -70,11 +62,27 @@ export function AppLayout() {
       <div className="lg:pl-64">
         <main className="py-20 px-4 sm:px-6 lg:px-8">
           <Routes>
-            {routes}
+            {/* Common routes */}
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
-            {/* Catch any invalid routes and redirect to home */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            
+            {/* Role-specific routes */}
+            {user.role === 'mentee' ? (
+              <>
+                <Route index element={<MenteeDashboard />} />
+                <Route path="/mentors" element={<MentorsPage />} />
+                <Route path="/credits" element={<CreditsPage />} />
+                <Route path="/request-feedback" element={<RequestFeedbackPage />} />
+                <Route path="/feedback-history" element={<FeedbackHistoryPage />} />
+              </>
+            ) : (
+              <>
+                <Route index element={<MentorDashboard />} />
+              </>
+            )}
+            
+            {/* Catch any invalid routes and redirect to dashboard index */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </main>
       </div>

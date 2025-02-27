@@ -20,7 +20,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('AuthContext: Initial session check', { hasSession: !!session });
+      console.log('AuthContext: Initial session check', { 
+        hasSession: !!session,
+        userId: session?.user?.id
+      });
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -29,7 +32,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: AuthChangeEvent, session: Session | null) => {
-        console.log('AuthContext: Auth state change', { event, hasSession: !!session });
+        console.log('AuthContext: Auth state change', { 
+          event, 
+          hasSession: !!session,
+          userId: session?.user?.id
+        });
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -42,18 +49,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithEmail = async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: getRedirectUrl('/auth/callback')
+    console.log(`AuthContext: Sending magic link to ${email}`);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: getRedirectUrl('/auth/callback')
+        }
+      });
+      
+      if (error) {
+        console.error('AuthContext: Error sending magic link', error);
+        throw error;
       }
-    });
-    if (error) throw error;
+      
+      console.log('AuthContext: Magic link sent successfully');
+    } catch (error) {
+      console.error('AuthContext: Error in signInWithEmail', error);
+      throw error;
+    }
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    console.log('AuthContext: Signing out user', user?.id);
+    try {
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('AuthContext: Error signing out', error);
+        throw error;
+      }
+      
+      console.log('AuthContext: User signed out successfully');
+      // Clear local state
+      setSession(null);
+      setUser(null);
+    } catch (error) {
+      console.error('AuthContext: Error in signOut', error);
+      throw error;
+    }
   };
 
   return (

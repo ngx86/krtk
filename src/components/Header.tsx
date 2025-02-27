@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Menu, Bell, LogOut } from "lucide-react"
-import { supabase } from '../lib/supabaseClient';
+import { Menu, Bell, LogOut, User, Settings, CreditCard } from "lucide-react"
 
 interface HeaderProps {
   role: 'mentee' | 'mentor';
@@ -20,6 +20,7 @@ export function Header({ role, credits, onMenuClick }: HeaderProps) {
   const navigate = useNavigate();
   
   const { notifications } = useApp();
+  const { signOut } = useAuth();
   const unreadNotifications = notifications.filter((n: { read: boolean }) => !n.read).length;
 
   useEffect(() => {
@@ -37,8 +38,18 @@ export function Header({ role, credits, onMenuClick }: HeaderProps) {
   }, []);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate('/');
+    try {
+      console.log('Header: Signing out');
+      await signOut();
+      console.log('Header: Sign out successful, navigating to login');
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
+  const closeProfileMenu = () => {
+    setShowProfileMenu(false);
   };
 
   return (
@@ -59,9 +70,11 @@ export function Header({ role, credits, onMenuClick }: HeaderProps) {
             <div className="flex items-center space-x-4">
               <div className="text-sm text-muted-foreground">Credits:</div>
               <div className="font-bold text-primary">{credits}</div>
-              <Button size="sm" variant="outline">
-                Buy Credits
-              </Button>
+              <Link to="/dashboard/credits">
+                <Button size="sm" variant="outline">
+                  Buy Credits
+                </Button>
+              </Link>
             </div>
           )}
 
@@ -86,15 +99,21 @@ export function Header({ role, credits, onMenuClick }: HeaderProps) {
                   <h3 className="text-sm font-medium">Notifications</h3>
                 </div>
                 <div className="max-h-96 overflow-y-auto">
-                  {notifications.slice(0, 5).map((notification) => (
-                    <div key={notification.id} className="p-4 hover:bg-muted">
-                      <p className="text-sm">{notification.message}</p>
+                  {notifications.length > 0 ? (
+                    notifications.slice(0, 5).map((notification) => (
+                      <div key={notification.id} className="p-4 hover:bg-muted">
+                        <p className="text-sm">{notification.message}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      No notifications
                     </div>
-                  ))}
+                  )}
                 </div>
                 <div className="p-4 border-t">
                   <Link
-                    to="/notifications"
+                    to="/dashboard/notifications"
                     className="text-sm text-primary hover:underline"
                     onClick={() => setShowNotifications(false)}
                   >
@@ -121,9 +140,40 @@ export function Header({ role, credits, onMenuClick }: HeaderProps) {
             {showProfileMenu && (
               <div className="absolute right-0 mt-2 w-48 rounded-md bg-popover text-popover-foreground shadow-md ring-1 ring-black ring-opacity-5">
                 <div className="py-1">
+                  <Link
+                    to="/dashboard/profile"
+                    className="block px-4 py-2 text-sm flex items-center space-x-2 hover:bg-accent hover:text-accent-foreground"
+                    onClick={closeProfileMenu}
+                  >
+                    <User className="h-4 w-4" />
+                    <span>Profile</span>
+                  </Link>
+                  
+                  <Link
+                    to="/dashboard/settings"
+                    className="block px-4 py-2 text-sm flex items-center space-x-2 hover:bg-accent hover:text-accent-foreground"
+                    onClick={closeProfileMenu}
+                  >
+                    <Settings className="h-4 w-4" />
+                    <span>Settings</span>
+                  </Link>
+                  
+                  {role === 'mentee' && (
+                    <Link
+                      to="/dashboard/credits"
+                      className="block px-4 py-2 text-sm flex items-center space-x-2 hover:bg-accent hover:text-accent-foreground"
+                      onClick={closeProfileMenu}
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      <span>Buy Credits</span>
+                    </Link>
+                  )}
+                  
+                  <div className="border-t my-1"></div>
+                  
                   <button
                     onClick={handleSignOut}
-                    className="w-full text-left px-4 py-2 text-sm flex items-center space-x-2 hover:bg-accent hover:text-accent-foreground"
+                    className="w-full text-left px-4 py-2 text-sm flex items-center space-x-2 hover:bg-accent hover:text-accent-foreground text-destructive hover:text-destructive"
                   >
                     <LogOut className="h-4 w-4" />
                     <span>Sign Out</span>

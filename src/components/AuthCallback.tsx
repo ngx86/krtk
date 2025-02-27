@@ -14,6 +14,7 @@ export function AuthCallback() {
     const handleCallback = async () => {
       try {
         setStatus('Checking for authentication tokens...')
+        console.log('Auth callback: Starting authentication process', { url: window.location.href });
         
         // Handle both hash and query parameters for different auth methods
         const hashParams = new URLSearchParams(window.location.hash.substring(1))
@@ -26,42 +27,55 @@ export function AuthCallback() {
         console.log('Auth callback: Token check', { 
           hasAccessToken: !!accessToken,
           hasRefreshToken: !!refreshToken,
-          url: window.location.href
+          hashKeys: Array.from(hashParams.keys()),
+          queryKeys: Array.from(queryParams.keys())
         });
         
         if (!accessToken) {
           // If no token in URL, check if we already have a session
           setStatus('No token found, checking for existing session...')
-          const { data: { session } } = await supabase.auth.getSession()
+          const { data, error: sessionError } = await supabase.auth.getSession()
+          
+          if (sessionError) {
+            console.error('Auth callback: Error getting session', sessionError);
+            throw sessionError;
+          }
+          
+          const session = data.session;
           
           if (session) {
             console.log('Auth callback: Found existing session', { 
-              user: session.user.id 
+              user: session.user.id,
+              expires: session.expires_at
             });
             
             // Check if user has a profile
             setStatus('Checking user profile...')
             const { exists, role } = await checkUserInDatabase(session.user.id);
+            console.log('Auth callback: User database check', { exists, role });
             
             // Refresh user role in context
             await refreshUserRole();
               
             if (exists && role) {
-              console.log('Auth callback: User exists in database with role, redirecting to dashboard');
+              console.log('Auth callback: User exists with role, redirecting to dashboard');
               navigate('/dashboard', { replace: true });
             } else {
-              console.log('Auth callback: User does not exist in database or has no role, redirecting to role selection');
+              console.log('Auth callback: User needs role selection, redirecting');
               navigate('/role-selection', { replace: true });
             }
             return;
           }
           
+          console.error('Auth callback: No access token and no session');
           throw new Error('No access token found and no existing session');
         }
 
         // Set the session with the tokens from URL
         setStatus('Setting up your session...')
-        const { error: sessionError } = await supabase.auth.setSession({
+        console.log('Auth callback: Setting session with tokens');
+        
+        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken || ''
         });
@@ -70,32 +84,45 @@ export function AuthCallback() {
           console.error('Auth callback: Session error', sessionError);
           throw sessionError;
         }
+        
+        console.log('Auth callback: Session set successfully', {
+          hasSession: !!sessionData.session
+        });
 
         // Get current session to verify
         setStatus('Verifying session...')
-        const { data: { session } } = await supabase.auth.getSession()
+        const { data: { session }, error: getSessionError } = await supabase.auth.getSession()
+        
+        if (getSessionError) {
+          console.error('Auth callback: Error getting session after auth', getSessionError);
+          throw getSessionError;
+        }
+        
         if (!session) {
           console.error('Auth callback: No session after setting tokens');
           throw new Error('No session after authentication');
         }
         
         console.log('Auth callback: Session verified', { 
-          user: session.user.id 
+          user: session.user.id,
+          email: session.user.email,
+          expires: session.expires_at
         });
 
         // Check if user has a profile in the database
         setStatus('Checking your profile...')
         const { exists, role } = await checkUserInDatabase(session.user.id);
+        console.log('Auth callback: User database check', { exists, role });
         
         // Refresh user role in context
         await refreshUserRole();
           
         // Redirect based on user existence and role
         if (exists && role) {
-          console.log('Auth callback: User exists in database with role, redirecting to dashboard');
+          console.log('Auth callback: User exists with role, redirecting to dashboard');
           navigate('/dashboard', { replace: true });
         } else {
-          console.log('Auth callback: User does not exist in database or has no role, redirecting to role selection');
+          console.log('Auth callback: User needs role selection, redirecting');
           navigate('/role-selection', { replace: true });
         }
       } catch (err) {

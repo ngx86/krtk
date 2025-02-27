@@ -28,30 +28,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   // Function to fetch user role from database
-  const fetchUserRole = async (userId: string): Promise<string | null> => {
+  const fetchUserRole = async (userId: string): Promise<'mentor' | 'mentee' | null> => {
     try {
+      console.log('Fetching user role for user:', userId);
       const { data, error } = await supabase
         .from('users')
         .select('role')
         .eq('id', userId)
-        .maybeSingle();
+        .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching user role:', error.message);
+        return null;
+      }
+      
+      console.log('User role data:', data);
       return data?.role || null;
     } catch (error) {
-      console.error('Error fetching user role:', error);
+      console.error('Unexpected error fetching user role:', error);
       return null;
     }
   };
 
   // Function to refresh user role
   const refreshUserRole = async (): Promise<void> => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log('Cannot refresh role: No user ID');
+      return;
+    }
     
     try {
+      console.log('Refreshing role for user:', user.id);
       const role = await fetchUserRole(user.id);
-      setUserRoleState(role as 'mentor' | 'mentee' | null);
-      setUser(prev => prev ? {...prev, userRole: role as 'mentor' | 'mentee' | null} : null);
+      console.log('Refreshed role:', role);
+      
+      setUserRoleState(role);
+      setUser(prev => prev ? {...prev, userRole: role} : null);
     } catch (error) {
       console.error('Error refreshing user role:', error);
     }
@@ -60,14 +72,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Check if user exists in database and get their role
   const checkUserInDatabase = async (userId: string): Promise<{exists: boolean, role: string | null}> => {
     try {
+      console.log('Checking user in database:', userId);
       const { data, error } = await supabase
         .from('users')
         .select('id, role')
         .eq('id', userId)
-        .maybeSingle();
+        .single();
       
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // Record not found
+          console.log('User not found in database');
+          return { exists: false, role: null };
+        }
+        throw error;
+      }
       
+      console.log('User data from database:', data);
       return { exists: !!data, role: data?.role || null };
     } catch (error) {
       console.error('Error checking user in database:', error);
@@ -77,64 +98,99 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize auth and fetch user role
   useEffect(() => {
+    let mounted = true;
+    
     const initializeAuth = async () => {
       try {
+        console.log('Starting auth initialization');
         setLoading(true);
-        const { data: { session } } = await supabase.auth.getSession();
         
-        setSession(session);
+        // Get session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
         
-        if (session?.user) {
-          const role = await fetchUserRole(session.user.id);
-          setUserRoleState(role as 'mentor' | 'mentee' | null);
+        console.log('Session retrieved:', !!session);
+        
+        if (mounted) {
+          setSession(session);
           
-          const userWithRole: UserWithRole = {
-            ...session.user,
-            userRole: role as 'mentor' | 'mentee' | null
-          };
-          setUser(userWithRole);
-        } else {
-          setUser(null);
-          setUserRoleState(null);
+          if (session?.user) {
+            console.log('User found in session:', session.user.id);
+            
+            // Get user role
+            const role = await fetchUserRole(session.user.id);
+            console.log('User role:', role);
+            
+            if (mounted) {
+              setUserRoleState(role);
+              setUser({
+                ...session.user,
+                userRole: role
+              });
+            }
+          } else {
+            console.log('No user in session');
+            if (mounted) {
+              setUser(null);
+              setUserRoleState(null);
+            }
+          }
+          
+          setLoading(false);
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
-      } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     initializeAuth();
 
+    // Subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_, session) => {
-        setSession(session);
+      async (event, session) => {
+        console.log('Auth state changed:', event, !!session);
         
-        if (session?.user) {
-          const role = await fetchUserRole(session.user.id);
-          setUserRoleState(role as 'mentor' | 'mentee' | null);
+        if (mounted) {
+          setSession(session);
           
-          const userWithRole: UserWithRole = {
-            ...session.user,
-            userRole: role as 'mentor' | 'mentee' | null
-          };
-          setUser(userWithRole);
-        } else {
-          setUser(null);
-          setUserRoleState(null);
+          if (session?.user) {
+            // Get user role on auth change
+            const role = await fetchUserRole(session.user.id);
+            console.log('User role after auth change:', role);
+            
+            if (mounted) {
+              setUserRoleState(role);
+              setUser({
+                ...session.user,
+                userRole: role
+              });
+            }
+          } else {
+            if (mounted) {
+              setUser(null);
+              setUserRoleState(null);
+            }
+          }
+          
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
 
   const signInWithEmail = async (email: string) => {
     try {
+      console.log('Signing in with email:', email);
+      setLoading(true);
+      
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
@@ -143,47 +199,82 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       if (error) throw error;
+      
+      console.log('Magic link sent successfully');
     } catch (error) {
       console.error('Error sending magic link:', error);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   const signOut = async () => {
     try {
+      console.log('Signing out user');
+      setLoading(true);
+      
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
+      console.log('Sign out successful');
       setSession(null);
       setUser(null);
       setUserRoleState(null);
     } catch (error) {
       console.error('Error signing out:', error);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   // Set user role in database
   const setUserRole = async (role: 'mentor' | 'mentee'): Promise<void> => {
     if (!user?.id) {
+      console.error('Cannot set role: No authenticated user');
       throw new Error('Cannot set role: User not authenticated');
     }
     
     try {
+      console.log('Setting user role:', role, 'for user:', user.id);
       setLoading(true);
       
-      const { error } = await supabase
-        .from('users')
-        .upsert({
-          id: user.id,
-          email: user.email,
-          role,
-          credits: role === 'mentee' ? 3 : 0, // Give mentees 3 initial credits
-          created_at: new Date().toISOString()
-        });
+      // Check if user record exists
+      const { exists } = await checkUserInDatabase(user.id);
+      
+      const userData = {
+        id: user.id,
+        email: user.email,
+        role,
+        credits: role === 'mentee' ? 3 : 0, // Give mentees 3 initial credits
+        created_at: new Date().toISOString()
+      };
+      
+      let error;
+      
+      if (exists) {
+        console.log('User exists, updating role');
+        const result = await supabase
+          .from('users')
+          .update({ role })
+          .eq('id', user.id);
+          
+        error = result.error;
+      } else {
+        console.log('User does not exist, creating new record');
+        const result = await supabase
+          .from('users')
+          .insert([userData]);
+          
+        error = result.error;
+      }
       
       if (error) throw error;
       
+      console.log('User role set successfully');
+      
+      // Update local state
       setUserRoleState(role);
       setUser(prev => prev ? {...prev, userRole: role} : null);
     } catch (error) {

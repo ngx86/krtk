@@ -47,10 +47,14 @@ function ProtectedRoleSelection() {
   const [checkingStatus, setCheckingStatus] = useState(true);
 
   useEffect(() => {
+    // Use a mounted flag to prevent state updates after unmount
+    let mounted = true;
+    
     const checkStatus = async () => {
       try {
-        console.log('ProtectedRoleSelection: Checking status', { 
+        console.log('ProtectedRoleSelection: Initial state', { 
           hasUser: !!user,
+          userId: user?.id,
           userRole,
           loading
         });
@@ -65,19 +69,27 @@ function ProtectedRoleSelection() {
         }
         
         if (userRole) {
-          console.log('ProtectedRoleSelection: User already has role, redirecting to dashboard');
+          console.log('ProtectedRoleSelection: User has role, redirecting to dashboard');
           navigate('/dashboard', { replace: true });
           return;
         }
         
-        setCheckingStatus(false);
+        if (mounted) {
+          setCheckingStatus(false);
+        }
       } catch (error) {
         console.error('ProtectedRoleSelection: Error checking status', error);
-        navigate('/login', { replace: true });
+        if (mounted) {
+          navigate('/login', { replace: true });
+        }
       }
     };
     
     checkStatus();
+    
+    return () => {
+      mounted = false;
+    };
   }, [user, loading, userRole, navigate]);
 
   if (loading || checkingStatus) {
@@ -94,16 +106,20 @@ function ProtectedRoleSelection() {
 }
 
 function ProtectedRoute() {
-  const { user, userRole, loading, refreshUserRole } = useAuth();
+  const { user, userRole, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [checkingStatus, setCheckingStatus] = useState(true);
 
   useEffect(() => {
+    // Use a mounted flag to prevent state updates after unmount
+    let mounted = true;
+    
     const checkStatus = async () => {
       try {
-        console.log('ProtectedRoute: Auth state check', { 
+        console.log('ProtectedRoute: Checking auth state', { 
           hasUser: !!user,
+          userId: user?.id,
           userRole,
           loading,
           path: location.pathname
@@ -118,24 +134,30 @@ function ProtectedRoute() {
           return;
         }
         
-        // Refresh user role to ensure it's up to date
-        await refreshUserRole();
-        
         if (!userRole) {
           console.log('ProtectedRoute: User has no role, redirecting to role selection');
           navigate('/role-selection', { replace: true });
           return;
         }
         
-        setCheckingStatus(false);
+        if (mounted) {
+          console.log('ProtectedRoute: User authenticated and has role, rendering dashboard');
+          setCheckingStatus(false);
+        }
       } catch (error) {
         console.error('ProtectedRoute: Error checking status', error);
-        navigate('/login', { replace: true });
+        if (mounted) {
+          navigate('/login', { replace: true });
+        }
       }
     };
     
     checkStatus();
-  }, [user, loading, userRole, navigate, location, refreshUserRole]);
+    
+    return () => {
+      mounted = false;
+    };
+  }, [user, loading, userRole, navigate, location.pathname]);
 
   if (loading || checkingStatus) {
     return (

@@ -43,7 +43,7 @@ CREATE POLICY IF NOT EXISTS "Allow public read access to users for role checks"
 GRANT SELECT, INSERT, UPDATE ON public.users TO authenticated;
 GRANT SELECT ON public.users TO anon;
 
--- Create a function to automatically update the updated_at timestamp
+-- Create a function to automatically update the updated_at column
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN

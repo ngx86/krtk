@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { useOnboarding } from '../contexts/OnboardingContext';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from './LoadingSpinner';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
@@ -13,8 +12,7 @@ type UserRole = 'mentor' | 'mentee';
 
 export function RoleSelection() {
   const navigate = useNavigate();
-  const { setRole, error: onboardingError } = useOnboarding();
-  const { user, userRole, loading: authLoading } = useAuth();
+  const { user, userRole, loading: authLoading, setUserRole } = useAuth();
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,14 +20,13 @@ export function RoleSelection() {
   // If user already has a role, redirect to dashboard
   useEffect(() => {
     if (!authLoading && userRole) {
-      console.log('RoleSelection: User already has role, redirecting to dashboard', { role: userRole });
       navigate('/dashboard', { replace: true });
     }
   }, [userRole, authLoading, navigate]);
 
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);
-    setError(null); // Clear any previous errors
+    setError(null);
   };
 
   const handleSubmit = async () => {
@@ -42,17 +39,10 @@ export function RoleSelection() {
       setSubmitting(true);
       setError(null);
       
-      console.log('RoleSelection: Setting user role', { 
-        userId: user?.id, 
-        role: selectedRole 
-      });
-      
-      await setRole(selectedRole);
-      
-      console.log('RoleSelection: Role set successfully, redirecting to dashboard');
+      await setUserRole(selectedRole);
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      console.error('RoleSelection: Error setting role:', err);
+      console.error('Error setting role:', err);
       setError(err instanceof Error ? err.message : 'Failed to set role. Please try again.');
     } finally {
       setSubmitting(false);
@@ -91,13 +81,11 @@ export function RoleSelection() {
       <div className="max-w-md w-full">
         <h1 className="text-2xl font-bold text-center mb-6">Welcome to Our Platform</h1>
         
-        {(error || onboardingError) && (
+        {error && (
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Error</AlertTitle>
-            <AlertDescription>
-              {error || onboardingError}
-            </AlertDescription>
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
         
@@ -118,7 +106,7 @@ export function RoleSelection() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                As a feedback seeker, you'll be able to submit your work and receive valuable feedback.
+                Get valuable feedback on your designs from experienced mentors.
               </p>
             </CardContent>
           </Card>
@@ -135,7 +123,7 @@ export function RoleSelection() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                As a mentor, you'll be able to review work and provide valuable feedback.
+                Share your expertise by providing feedback to designers.
               </p>
             </CardContent>
           </Card>

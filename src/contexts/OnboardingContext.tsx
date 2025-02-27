@@ -61,17 +61,34 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     setLoading(true);
     setError(null);
     
+    // Set a timeout to prevent infinite loading state
+    const timeoutId = setTimeout(() => {
+      console.log('OnboardingContext: Role setting operation timed out');
+      setLoading(false);
+      setError('The operation timed out. Please try again.');
+    }, 15000); // 15 second timeout
+    
     try {
       // Use the setUserRole function from AuthContext
       await setUserRole(role);
       
+      // Clear the timeout since the operation completed
+      clearTimeout(timeoutId);
+      
       console.log(`OnboardingContext: Successfully set role to ${role} for user ${user.id}`);
       setIsComplete(true);
     } catch (error) {
+      // Clear the timeout since the operation completed with an error
+      clearTimeout(timeoutId);
+      
       console.error('OnboardingContext: Error setting role:', error);
       
-      // Log the actual error for debugging but show a user-friendly message
-      setError('We encountered an issue setting your role. Please try again later or contact support.');
+      // Provide a user-friendly error message
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('We encountered an issue setting your role. Please try again later or contact support.');
+      }
       
       // Still throw an error for the component to handle, but with a user-friendly message
       throw new Error('We encountered an issue setting your role. Please try again later.');

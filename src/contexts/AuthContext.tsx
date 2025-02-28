@@ -219,13 +219,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       
       console.log('Sign out successful');
+      
+      // Reset all auth-related state
       setSession(null);
       setUser(null);
       setUserRoleState(null);
+      
+      // Ensure we're not stuck in loading state
+      setLoading(false);
     } catch (error) {
       console.error('Error signing out:', error);
+      
+      // Even if there's an error, reset state and ensure we're not in loading state
+      setSession(null);
+      setUser(null);
+      setUserRoleState(null);
+      setLoading(false);
+      
       throw error;
     } finally {
+      // Triple check we're not in loading state
       setLoading(false);
     }
   };

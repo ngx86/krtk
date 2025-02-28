@@ -40,11 +40,28 @@ export function Header({ role, credits, onMenuClick }: HeaderProps) {
   const handleSignOut = async () => {
     try {
       console.log('Header: Signing out');
-      await signOut();
-      console.log('Header: Sign out successful, navigating to login');
+      
+      // First navigate to login page
+      console.log('Header: Navigating to login page');
       navigate('/login', { replace: true });
+      
+      // Wait a moment to ensure navigation starts
+      setTimeout(async () => {
+        try {
+          // Then perform sign out
+          await signOut();
+          console.log('Header: Sign out completed after navigation');
+          
+          // If needed, force a page reload to clear any lingering state
+          window.location.reload();
+        } catch (error) {
+          console.error('Error in delayed sign out:', error);
+        }
+      }, 100);
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('Error in handleSignOut:', error);
+      // As a fallback, force reload to the login page
+      window.location.href = '/login';
     }
   };
 

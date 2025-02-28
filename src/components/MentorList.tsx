@@ -10,12 +10,12 @@ interface Mentor {
   id: string;
   name: string | null;
   avatar_url: string | null;
-  expertise: string[];
-  rating: number;
-  review_count: number;
+  expertise: string[] | null;
+  rating: number | null;
+  review_count: number | null;
   bio: string | null;
   portfolio: string | null;
-  languages: string[];
+  languages: string[] | null;
   available: boolean;
   price_per_feedback: number | null;
 }
@@ -64,10 +64,10 @@ export function MentorList({ onSelectMentor }: MentorListProps) {
   // Filter mentors based on criteria
   const filteredMentors = mentors.filter(mentor => {
     const matchesExpertise = !filters.expertise || 
-      mentor.expertise?.includes(filters.expertise);
+      (mentor.expertise && mentor.expertise.includes(filters.expertise));
     const matchesLanguage = !filters.language || 
-      mentor.languages?.includes(filters.language);
-    const matchesRating = mentor.rating >= filters.minRating;
+      (mentor.languages && mentor.languages.includes(filters.language));
+    const matchesRating = !mentor.rating || mentor.rating >= filters.minRating;
     return matchesExpertise && matchesLanguage && matchesRating;
   });
 
@@ -157,9 +157,9 @@ export function MentorList({ onSelectMentor }: MentorListProps) {
                         <CardTitle>{mentor.name || 'Anonymous'}</CardTitle>
                         <div className="flex items-center space-x-2">
                           <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                          <span>{mentor.rating.toFixed(1)}</span>
+                          <span>{mentor.rating !== null && mentor.rating !== undefined ? mentor.rating.toFixed(1) : '0.0'}</span>
                           <span className="text-sm text-muted-foreground">
-                            ({mentor.review_count} reviews)
+                            ({mentor.review_count || 0} reviews)
                           </span>
                         </div>
                       </div>
@@ -179,7 +179,7 @@ export function MentorList({ onSelectMentor }: MentorListProps) {
                         {mentor.expertise?.slice(0, 3).map((skill) => (
                           <Badge key={skill} variant="outline">{skill}</Badge>
                         ))}
-                        {mentor.expertise?.length > 3 && (
+                        {mentor.expertise && mentor.expertise.length > 3 && (
                           <Badge variant="outline">+{mentor.expertise.length - 3} more</Badge>
                         )}
                       </div>

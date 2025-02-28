@@ -11,6 +11,7 @@ import { SettingsPage } from './SettingsPage';
 import { NotificationsPage } from './NotificationsPage';
 import { RequestFeedbackPage } from './RequestFeedbackPage';
 import { FeedbackHistoryPage } from './FeedbackHistoryPage';
+import { EarningsPage } from './EarningsPage';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from './LoadingSpinner';
 
@@ -78,6 +79,8 @@ export function AppLayout() {
             ) : (
               <>
                 <Route index element={<MentorDashboard />} />
+                <Route path="/feedback-history" element={<FeedbackHistoryPage />} />
+                <Route path="/earnings" element={<EarningsPage />} />
               </>
             )}
             

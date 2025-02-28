@@ -294,6 +294,57 @@ export function MentorDashboard(): JSX.Element {
         </CardContent>
       </Card>
 
+      {/* Pending Feedback Requests */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Pending Feedback Requests</CardTitle>
+          <CardDescription>
+            Review and respond to feedback requests from mentees
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {pendingRequests.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No pending feedback requests at this time
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {pendingRequests.map((request) => (
+                  <Card key={request.id} className="bg-muted">
+                    <CardContent className="p-4">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-medium line-clamp-2">
+                            {request.description}
+                          </h3>
+                          <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold border-transparent bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100">
+                            {request.urgency}
+                          </span>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Requested on {request.created_at && new Date(request.created_at).toLocaleDateString()}
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold border-transparent bg-primary text-primary-foreground">
+                            {request.credits_cost} Credits
+                          </span>
+                          <Button
+                            onClick={() => setExpandedRequest({ id: request.id, view: 'fullpage' })}
+                          >
+                            Provide Feedback
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {expandedRequest.id && expandedRequest.view === 'sidebar' && (
         <div className="fixed inset-y-0 right-0 w-[600px] bg-background border-l">
           <RequestDetails 

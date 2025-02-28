@@ -5,15 +5,23 @@ import { Input } from './ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { LoadingSpinner } from './LoadingSpinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { useNavigate } from 'react-router-dom';
 
 export function Login() {
-  const { signInWithEmail, signInWithEmailAndPassword, signUpWithEmail } = useAuth();
+  const navigate = useNavigate();
+  const { signInWithEmail, signInWithEmailAndPassword, signUpWithEmail, userRole } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+
+  const resetForm = () => {
+    setPassword('');
+    setConfirmPassword('');
+    // Don't reset email to make it easier to try different methods
+  };
 
   const handleMagicLinkSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +39,7 @@ export function Login() {
         type: 'success', 
         text: 'Check your email for the login link!' 
       });
+      resetForm();
     } catch (error) {
       console.error('Login error:', error);
       setMessage({ 
@@ -66,10 +75,13 @@ export function Login() {
       
       if (authMode === 'signin') {
         await signInWithEmailAndPassword(email, password);
-        setMessage({ 
-          type: 'success', 
-          text: 'Successfully signed in!' 
-        });
+        
+        // Navigate user based on role
+        if (userRole) {
+          navigate('/dashboard');
+        } else {
+          navigate('/role-selection');
+        }
       } else {
         // Sign up flow
         await signUpWithEmail(email, password);
@@ -77,6 +89,8 @@ export function Login() {
           type: 'success', 
           text: 'Account created successfully! Check your email to confirm your account.' 
         });
+        resetForm();
+        setAuthMode('signin');
       }
     } catch (error) {
       console.error('Authentication error:', error);
@@ -92,6 +106,7 @@ export function Login() {
   const toggleAuthMode = () => {
     setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
     setMessage(null);
+    resetForm();
   };
 
   return (
@@ -100,7 +115,7 @@ export function Login() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl text-center">Welcome</CardTitle>
           <CardDescription className="text-center">
-            Sign in to get started
+            {authMode === 'signin' ? 'Sign in to get started' : 'Create a new account'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -149,7 +164,7 @@ export function Login() {
                   className="w-full" 
                   disabled={loading}
                 >
-                  {loading ? <LoadingSpinner /> : authMode === 'signin' ? 'Sign In' : 'Sign Up'}
+                  {loading ? <LoadingSpinner fullScreen={false} className="mr-2 h-4 w-4" /> : authMode === 'signin' ? 'Sign In' : 'Sign Up'}
                 </Button>
                 <div className="text-center text-sm">
                   <button 
@@ -182,8 +197,11 @@ export function Login() {
                   className="w-full" 
                   disabled={loading}
                 >
-                  {loading ? <LoadingSpinner /> : 'Send Magic Link'}
+                  {loading ? <LoadingSpinner fullScreen={false} className="mr-2 h-4 w-4" /> : 'Send Magic Link'}
                 </Button>
+                <p className="text-sm text-muted-foreground text-center">
+                  We'll email you a magic link for a password-free sign in
+                </p>
               </form>
             </TabsContent>
           </Tabs>

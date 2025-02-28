@@ -1,24 +1,26 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase, getRedirectUrl } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabaseClient';
+import * as authService from '../lib/authService';
+
+type UserRole = 'mentor' | 'mentee' | null;
 
 // Define a type for user with role
 interface UserWithRole extends User {
-  userRole?: 'mentor' | 'mentee' | null;
+  userRole?: UserRole;
 }
 
 interface AuthContextType {
   session: Session | null;
   user: UserWithRole | null;
   loading: boolean;
-  userRole: 'mentor' | 'mentee' | null;
+  userRole: UserRole;
   signInWithEmail: (email: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string) => Promise<any>;
-  signInWithEmailAndPassword: (email: string, password: string) => Promise<any>;
+  signUpWithEmail: (email: string, password: string) => Promise<void>;
+  signInWithEmailAndPassword: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   setUserRole: (role: 'mentor' | 'mentee') => Promise<void>;
   refreshUserRole: () => Promise<void>;
-  checkUserInDatabase: (userId: string) => Promise<{exists: boolean, role: string | null}>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,31 +28,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<UserWithRole | null>(null);
-  const [userRole, setUserRoleState] = useState<'mentor' | 'mentee' | null>(null);
+  const [userRole, setUserRoleState] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
-
-  // Function to fetch user role from database
-  const fetchUserRole = async (userId: string): Promise<'mentor' | 'mentee' | null> => {
-    try {
-      console.log('Fetching user role for user:', userId);
-      const { data, error } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', userId)
-        .single();
-      
-      if (error) {
-        console.error('Error fetching user role:', error.message);
-        return null;
-      }
-      
-      console.log('User role data:', data);
-      return data?.role || null;
-    } catch (error) {
-      console.error('Unexpected error fetching user role:', error);
-      return null;
-    }
-  };
 
   // Function to refresh user role
   const refreshUserRole = async (): Promise<void> => {
@@ -61,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     try {
       console.log('Refreshing role for user:', user.id);
-      const role = await fetchUserRole(user.id);
+      const role = await authService.getUserRole(user.id);
       console.log('Refreshed role:', role);
       
       setUserRoleState(role);
@@ -71,116 +50,91 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Check if user exists in database and get their role
-  const checkUserInDatabase = async (userId: string): Promise<{exists: boolean, role: string | null}> => {
-    try {
-      console.log('Checking user in database:', userId);
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, role')
-        .eq('id', userId)
-        .single();
-      
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // Record not found
-          console.log('User not found in database');
-          return { exists: false, role: null };
-        }
-        throw error;
-      }
-      
-      console.log('User data from database:', data);
-      return { exists: !!data, role: data?.role || null };
-    } catch (error) {
-      console.error('Error checking user in database:', error);
-      return { exists: false, role: null };
-    }
-  };
-
-  // Initialize auth and fetch user role
+  // Initialize auth state
   useEffect(() => {
+    console.log('Initializing auth provider');
     let mounted = true;
     
-    const initializeAuth = async () => {
-      try {
-        console.log('Starting auth initialization');
-        setLoading(true);
-        
-        // Get session
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        
-        console.log('Session retrieved:', !!session);
-        
-        if (mounted) {
-          setSession(session);
-          
-          if (session?.user) {
-            console.log('User found in session:', session.user.id);
-            
-            // Get user role
-            const role = await fetchUserRole(session.user.id);
-            console.log('User role:', role);
-            
-            if (mounted) {
-              setUserRoleState(role);
-              setUser({
-                ...session.user,
-                userRole: role
-              });
-            }
-          } else {
-            console.log('No user in session');
-            if (mounted) {
-              setUser(null);
-              setUserRoleState(null);
-            }
-          }
-          
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error);
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    initializeAuth();
-
-    // Subscribe to auth changes
+    // Setup auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, !!session);
+      async (event, currentSession) => {
+        console.log('Auth state changed:', event, !!currentSession);
         
-        if (mounted) {
-          setSession(session);
+        if (!mounted) return;
+        
+        setSession(currentSession);
+        
+        if (currentSession?.user) {
+          const currentUser = currentSession.user;
+          console.log('User found in session:', currentUser.id);
           
-          if (session?.user) {
-            // Get user role on auth change
-            const role = await fetchUserRole(session.user.id);
+          try {
+            // Get user role
+            const role = await authService.getUserRole(currentUser.id);
             console.log('User role after auth change:', role);
             
-            if (mounted) {
-              setUserRoleState(role);
-              setUser({
-                ...session.user,
-                userRole: role
-              });
-            }
-          } else {
-            if (mounted) {
-              setUser(null);
-              setUserRoleState(null);
-            }
+            if (!mounted) return;
+            
+            setUserRoleState(role);
+            setUser({
+              ...currentUser,
+              userRole: role
+            });
+          } catch (error) {
+            console.error('Error fetching user role:', error);
+            
+            if (!mounted) return;
+            
+            setUser(currentUser);
           }
+        } else {
+          if (!mounted) return;
           
+          setUser(null);
+          setUserRoleState(null);
+        }
+        
+        setLoading(false);
+      }
+    );
+
+    // Get initial session
+    authService.getSession().then(({ data: { session: initialSession } }) => {
+      if (!mounted) return;
+      
+      setSession(initialSession);
+      
+      if (initialSession?.user) {
+        const initialUser = initialSession.user;
+        console.log('Initial user found:', initialUser.id);
+        
+        authService.getUserRole(initialUser.id).then(role => {
+          if (!mounted) return;
+          
+          console.log('Initial user role:', role);
+          setUserRoleState(role);
+          setUser({
+            ...initialUser,
+            userRole: role
+          });
+        }).catch(error => {
+          console.error('Error getting initial user role:', error);
+          
+          if (!mounted) return;
+          
+          setUser(initialUser);
+        }).finally(() => {
+          if (mounted) setLoading(false);
+        });
+      } else {
+        if (mounted) {
           setLoading(false);
         }
       }
-    );
+    }).catch(error => {
+      console.error('Error getting initial session:', error);
+      if (mounted) setLoading(false);
+    });
 
     return () => {
       mounted = false;
@@ -194,12 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Signing in with magic link:', email);
       setLoading(true);
       
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: getRedirectUrl('/auth/callback')
-        }
-      });
+      const { error } = await authService.signInWithOtp(email);
       
       if (error) throw error;
       
@@ -218,18 +167,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Signing up with email and password:', email);
       setLoading(true);
       
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: getRedirectUrl('/auth/callback')
-        }
-      });
+      const { error } = await authService.signUp(email, password);
       
       if (error) throw error;
       
-      console.log('Sign up successful', data);
-      return data;
+      console.log('Sign up successful');
     } catch (error) {
       console.error('Error signing up:', error);
       throw error;
@@ -244,15 +186,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Signing in with email and password:', email);
       setLoading(true);
       
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      const { error } = await authService.signInWithPassword(email, password);
       
       if (error) throw error;
       
-      console.log('Sign in successful', data);
-      return data;
+      console.log('Sign in successful');
     } catch (error) {
       console.error('Error signing in with password:', error);
       throw error;
@@ -261,12 +199,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Sign out
   const signOut = async () => {
     try {
       console.log('Signing out user');
       setLoading(true);
       
-      const { error } = await supabase.auth.signOut();
+      const { error } = await authService.signOut();
       if (error) throw error;
       
       console.log('Sign out successful');
@@ -292,37 +231,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Setting user role:', role, 'for user:', user.id);
       setLoading(true);
       
-      // Check if user record exists
-      const { exists } = await checkUserInDatabase(user.id);
-      
-      const userData = {
-        id: user.id,
-        email: user.email,
-        role,
-        credits: role === 'mentee' ? 3 : 0, // Give mentees 3 initial credits
-        created_at: new Date().toISOString()
-      };
-      
-      let error;
-      
-      if (exists) {
-        console.log('User exists, updating role');
-        const result = await supabase
-          .from('users')
-          .update({ role })
-          .eq('id', user.id);
-          
-        error = result.error;
-      } else {
-        console.log('User does not exist, creating new record');
-        const result = await supabase
-          .from('users')
-          .insert([userData]);
-          
-        error = result.error;
-      }
-      
-      if (error) throw error;
+      await authService.storeUserRole(user.id, user.email, role);
       
       console.log('User role set successfully');
       
@@ -348,8 +257,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signInWithEmailAndPassword,
       signOut,
       setUserRole,
-      refreshUserRole,
-      checkUserInDatabase
+      refreshUserRole
     }}>
       {children}
     </AuthContext.Provider>

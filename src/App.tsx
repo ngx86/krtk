@@ -1,7 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Login } from './components/Login';
 import { SplashScreen } from './components/SplashScreen';
-import { AuthCallback } from './components/AuthCallback';
 import './index.css';
 import { AppProvider } from './contexts/AppContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -25,7 +24,6 @@ function App() {
                 <Routes>
                   <Route path="/" element={<SplashScreen />} />
                   <Route path="/login" element={<Login />} />
-                  <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/role-selection" element={<ProtectedRoleSelection />} />
                   <Route path="/dashboard/*" element={<ProtectedRoute />} />
                   {/* Redirect /dashboard to /dashboard/ to ensure nested routes work */}

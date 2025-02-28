@@ -15,9 +15,9 @@ interface AuthContextType {
   user: UserWithRole | null;
   loading: boolean;
   userRole: UserRole;
-  signInWithEmail: (email: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
   signInWithEmailAndPassword: (email: string, password: string) => Promise<void>;
+  signInWithEmail: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   setUserRole: (role: 'mentor' | 'mentee') => Promise<void>;
   refreshUserRole: () => Promise<void>;
@@ -273,9 +273,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       loading,
       userRole,
-      signInWithEmail,
       signUpWithEmail,
       signInWithEmailAndPassword,
+      signInWithEmail,
       signOut,
       setUserRole,
       refreshUserRole

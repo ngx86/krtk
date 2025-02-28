@@ -40,6 +40,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     try {
       console.log('Refreshing role for user:', user.id);
+      
+      // Add a small delay to ensure Supabase has time to process any recent changes
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const role = await authService.getUserRole(user.id);
       console.log('Refreshed role:', role);
       
@@ -47,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(prev => prev ? {...prev, userRole: role} : null);
     } catch (error) {
       console.error('Error refreshing user role:', error);
+      // Continue without throwing since this is a non-critical operation
     }
   };
 
@@ -69,6 +74,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('User found in session:', currentUser.id);
           
           try {
+            // Short delay to ensure Supabase has processed any changes
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
             // Get user role
             const role = await authService.getUserRole(currentUser.id);
             console.log('User role after auth change:', role);
@@ -85,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
             if (!mounted) return;
             
+            // Still set the user even if we can't get the role
             setUser(currentUser);
           }
         } else {
@@ -122,6 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           if (!mounted) return;
           
+          // Set user even if we can't get role
           setUser(initialUser);
         }).finally(() => {
           if (mounted) setLoading(false);
@@ -231,15 +241,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Setting user role:', role, 'for user:', user.id);
       setLoading(true);
       
+      // Set local state immediately for better UX
+      setUserRoleState(role);
+      setUser(prev => prev ? {...prev, userRole: role} : null);
+      
+      // Then update in the database
       await authService.storeUserRole(user.id, user.email, role);
       
       console.log('User role set successfully');
       
-      // Update local state
-      setUserRoleState(role);
-      setUser(prev => prev ? {...prev, userRole: role} : null);
+      // Add delay before refreshing to ensure the update has propagated
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      await refreshUserRole();
+      
     } catch (error) {
       console.error('Error setting user role:', error);
+      
+      // If database update failed, we should still have a working app with the local state
+      // Don't revert the local state as this would create a confusing UX
+      // The next page refresh will attempt to sync with the database again
+      
       throw error;
     } finally {
       setLoading(false);

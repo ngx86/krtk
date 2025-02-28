@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { LoadingSpinner } from './LoadingSpinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { useNavigate } from 'react-router-dom';
+import { AlertCircle, Info } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 export function Login() {
   const navigate = useNavigate();
@@ -14,7 +16,7 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
 
   const resetForm = () => {
@@ -33,18 +35,20 @@ export function Login() {
     
     try {
       setLoading(true);
-      setMessage(null);
+      setMessage({ type: 'info', text: 'Sending login link...' });
+      
       await signInWithEmail(email);
+      
       setMessage({ 
         type: 'success', 
-        text: 'Check your email for the login link!' 
+        text: 'Check your email for the login link! It may take a minute to arrive. Be sure to check your spam folder if you don\'t see it.' 
       });
       resetForm();
     } catch (error) {
       console.error('Login error:', error);
       setMessage({ 
         type: 'error', 
-        text: error instanceof Error ? error.message : 'Failed to send login link' 
+        text: error instanceof Error ? error.message : 'Failed to send login link. Please try again or use password login.' 
       });
     } finally {
       setLoading(false);
@@ -71,33 +75,51 @@ export function Login() {
     
     try {
       setLoading(true);
-      setMessage(null);
+      setMessage({ type: 'info', text: authMode === 'signin' ? 'Signing in...' : 'Creating your account...' });
       
       if (authMode === 'signin') {
         await signInWithEmailAndPassword(email, password);
+        setMessage({ type: 'success', text: 'Sign in successful!' });
         
-        // Navigate user based on role
-        if (userRole) {
-          navigate('/dashboard');
-        } else {
-          navigate('/role-selection');
-        }
+        // Wait briefly to show success message before redirecting
+        setTimeout(() => {
+          // Navigate user based on role
+          if (userRole) {
+            navigate('/dashboard');
+          } else {
+            navigate('/role-selection');
+          }
+        }, 500);
       } else {
         // Sign up flow
         await signUpWithEmail(email, password);
         setMessage({ 
           type: 'success', 
-          text: 'Account created successfully! Check your email to confirm your account.' 
+          text: 'Account created successfully! Please check your email to confirm your account before signing in.' 
         });
         resetForm();
-        setAuthMode('signin');
+        // Switch to sign-in mode after 2 seconds
+        setTimeout(() => setAuthMode('signin'), 2000);
       }
     } catch (error) {
       console.error('Authentication error:', error);
-      setMessage({ 
-        type: 'error', 
-        text: error instanceof Error ? error.message : 'Authentication failed' 
-      });
+      
+      let errorMessage = 'Authentication failed. Please try again.';
+      
+      if (error instanceof Error) {
+        // Handle specific error messages more user-friendly
+        if (error.message.includes('invalid login credentials')) {
+          errorMessage = 'Invalid email or password. Please try again.';
+        } else if (error.message.includes('email already in use')) {
+          errorMessage = 'This email is already registered. Please sign in instead.';
+        } else if (error.message.includes('password')) {
+          errorMessage = 'Password is too weak. Please use at least 6 characters.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setMessage({ type: 'error', text: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -207,13 +229,32 @@ export function Login() {
           </Tabs>
           
           {message && (
-            <div className={`p-3 rounded-md text-sm ${
-              message.type === 'success' 
-                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
-                : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-            }`}>
-              {message.text}
-            </div>
+            <Alert 
+              variant={
+                message.type === 'success' 
+                  ? 'default' 
+                  : message.type === 'error' 
+                    ? 'destructive' 
+                    : 'default'
+              } 
+              className={`p-3 rounded-md text-sm ${
+                message.type === 'success' 
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
+                  : message.type === 'error'
+                    ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                    : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+              }`}
+            >
+              {message.type === 'error' ? (
+                <AlertCircle className="h-4 w-4" />
+              ) : message.type === 'info' ? (
+                <Info className="h-4 w-4" />
+              ) : null}
+              <AlertTitle>{message.type === 'success' ? 'Success' : message.type === 'error' ? 'Error' : 'Info'}</AlertTitle>
+              <AlertDescription>
+                {message.text}
+              </AlertDescription>
+            </Alert>
           )}
         </CardContent>
       </Card>

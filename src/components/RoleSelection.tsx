@@ -5,17 +5,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from './LoadingSpinner';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 
 // Update role type to match what's expected in OnboardingContext
 type UserRole = 'mentor' | 'mentee';
 
 export function RoleSelection() {
   const navigate = useNavigate();
-  const { user, userRole, loading: authLoading, setUserRole } = useAuth();
+  const { user, userRole, loading: authLoading, setUserRole, refreshUserRole } = useAuth();
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     console.log('RoleSelection: Component loaded', { 
@@ -35,6 +36,29 @@ export function RoleSelection() {
     console.log('RoleSelection: Role selected', { role });
     setSelectedRole(role);
     setError(null);
+  };
+
+  const handleRefreshUserRole = async () => {
+    if (!user) return;
+    
+    try {
+      setSubmitting(true);
+      setError(null);
+      console.log('RoleSelection: Manually refreshing user role');
+      await refreshUserRole();
+      
+      // If after refresh we have a role, redirect
+      if (userRole) {
+        navigate('/dashboard', { replace: true });
+      } else {
+        setError('Unable to retrieve your role. Please try setting it again.');
+      }
+    } catch (err) {
+      console.error('RoleSelection: Error refreshing role:', err);
+      setError('Could not refresh your role. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -59,13 +83,40 @@ export function RoleSelection() {
       
       await setUserRole(selectedRole);
       console.log('RoleSelection: Role set successfully');
+      
+      // Try to set the role a second time if this is the first attempt
+      // This can help overcome intermittent Supabase API issues
+      if (retryCount === 0) {
+        setRetryCount(1);
+        console.log('RoleSelection: Attempting second role save for reliability');
+        try {
+          // Small delay before retry
+          await new Promise(resolve => setTimeout(resolve, 800));
+          await setUserRole(selectedRole);
+        } catch (retryErr) {
+          // Ignore retry errors as we've already succeeded once
+          console.warn('RoleSelection: Second attempt failed, continuing anyway');
+        }
+      }
+      
       navigate('/dashboard', { replace: true });
     } catch (err) {
       console.error('RoleSelection: Error setting role:', err);
-      setError(err instanceof Error 
-        ? err.message 
-        : 'Failed to set role. Please try again.'
+      
+      // Even if we get an error from Supabase, the local state in AuthContext should be set
+      // So we can still proceed to the dashboard if userRole is set
+      if (userRole) {
+        console.log('RoleSelection: Despite API error, role is set in state. Proceeding.');
+        navigate('/dashboard', { replace: true });
+        return;
+      }
+      
+      setError(
+        'There was a problem setting your role. Please try again or refresh the page.'
       );
+      
+      // Increment retry count
+      setRetryCount(prev => prev + 1);
     } finally {
       setSubmitting(false);
     }
@@ -107,7 +158,23 @@ export function RoleSelection() {
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>
+              {error}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-2 w-full"
+                onClick={handleRefreshUserRole}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <LoadingSpinner fullScreen={false} className="mr-2 h-4 w-4" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                Refresh Account Status
+              </Button>
+            </AlertDescription>
           </Alert>
         )}
         

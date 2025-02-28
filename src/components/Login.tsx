@@ -4,14 +4,18 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { LoadingSpinner } from './LoadingSpinner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 
 export function Login() {
-  const { signInWithEmail } = useAuth();
+  const { signInWithEmail, signInWithEmailAndPassword, signUpWithEmail } = useAuth();
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleMagicLinkSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email.trim()) {
@@ -27,7 +31,6 @@ export function Login() {
         type: 'success', 
         text: 'Check your email for the login link!' 
       });
-      setEmail('');
     } catch (error) {
       console.error('Login error:', error);
       setMessage({ 
@@ -37,6 +40,58 @@ export function Login() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email.trim()) {
+      setMessage({ type: 'error', text: 'Please enter your email address' });
+      return;
+    }
+
+    if (!password) {
+      setMessage({ type: 'error', text: 'Please enter your password' });
+      return;
+    }
+
+    if (authMode === 'signup' && password !== confirmPassword) {
+      setMessage({ type: 'error', text: 'Passwords do not match' });
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      setMessage(null);
+      
+      if (authMode === 'signin') {
+        await signInWithEmailAndPassword(email, password);
+        setMessage({ 
+          type: 'success', 
+          text: 'Successfully signed in!' 
+        });
+      } else {
+        // Sign up flow
+        await signUpWithEmail(email, password);
+        setMessage({ 
+          type: 'success', 
+          text: 'Account created successfully! Check your email to confirm your account.' 
+        });
+      }
+    } catch (error) {
+      console.error('Authentication error:', error);
+      setMessage({ 
+        type: 'error', 
+        text: error instanceof Error ? error.message : 'Authentication failed' 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleAuthMode = () => {
+    setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
+    setMessage(null);
   };
 
   return (
@@ -49,25 +104,89 @@ export function Login() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={loading}
-                required
-              />
-            </div>
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={loading}
-            >
-              {loading ? <LoadingSpinner /> : 'Send Magic Link'}
-            </Button>
-          </form>
+          <Tabs defaultValue="password" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="password">Password</TabsTrigger>
+              <TabsTrigger value="magic-link">Magic Link</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="password" className="space-y-4">
+              <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Input
+                    type="email"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
+                    required
+                  />
+                </div>
+                {authMode === 'signup' && (
+                  <div className="space-y-2">
+                    <Input
+                      type="password"
+                      placeholder="Confirm Password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      disabled={loading}
+                      required
+                    />
+                  </div>
+                )}
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={loading}
+                >
+                  {loading ? <LoadingSpinner /> : authMode === 'signin' ? 'Sign In' : 'Sign Up'}
+                </Button>
+                <div className="text-center text-sm">
+                  <button 
+                    type="button"
+                    onClick={toggleAuthMode}
+                    className="text-blue-600 hover:underline focus:outline-none"
+                  >
+                    {authMode === 'signin' 
+                      ? "Don't have an account? Sign up" 
+                      : "Already have an account? Sign in"}
+                  </button>
+                </div>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="magic-link" className="space-y-4">
+              <form onSubmit={handleMagicLinkSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Input
+                    type="email"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
+                    required
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={loading}
+                >
+                  {loading ? <LoadingSpinner /> : 'Send Magic Link'}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
           
           {message && (
             <div className={`p-3 rounded-md text-sm ${

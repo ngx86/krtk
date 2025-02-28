@@ -13,6 +13,8 @@ interface AuthContextType {
   loading: boolean;
   userRole: 'mentor' | 'mentee' | null;
   signInWithEmail: (email: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string) => Promise<any>;
+  signInWithEmailAndPassword: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<void>;
   setUserRole: (role: 'mentor' | 'mentee') => Promise<void>;
   refreshUserRole: () => Promise<void>;
@@ -186,9 +188,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Email OTP (magic link) authentication
   const signInWithEmail = async (email: string) => {
     try {
-      console.log('Signing in with email:', email);
+      console.log('Signing in with magic link:', email);
       setLoading(true);
       
       const { error } = await supabase.auth.signInWithOtp({
@@ -203,6 +206,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Magic link sent successfully');
     } catch (error) {
       console.error('Error sending magic link:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Sign up with email and password
+  const signUpWithEmail = async (email: string, password: string) => {
+    try {
+      console.log('Signing up with email and password:', email);
+      setLoading(true);
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: getRedirectUrl('/auth/callback')
+        }
+      });
+      
+      if (error) throw error;
+      
+      console.log('Sign up successful', data);
+      return data;
+    } catch (error) {
+      console.error('Error signing up:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Sign in with email and password
+  const signInWithEmailAndPassword = async (email: string, password: string) => {
+    try {
+      console.log('Signing in with email and password:', email);
+      setLoading(true);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error) throw error;
+      
+      console.log('Sign in successful', data);
+      return data;
+    } catch (error) {
+      console.error('Error signing in with password:', error);
       throw error;
     } finally {
       setLoading(false);
@@ -292,6 +344,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       userRole,
       signInWithEmail,
+      signUpWithEmail,
+      signInWithEmailAndPassword,
       signOut,
       setUserRole,
       refreshUserRole,

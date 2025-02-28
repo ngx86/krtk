@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
@@ -15,57 +15,87 @@ import { EarningsPage } from './EarningsPage';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from './LoadingSpinner';
 
+// Type safety for role comparison
+function isMentee(role: 'mentor' | 'mentee' | null): role is 'mentee' {
+  return role === 'mentee';
+}
+
+function isMentor(role: 'mentor' | 'mentee' | null): role is 'mentor' {
+  return role === 'mentor';
+}
+
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { credits } = useApp();
-  const { user, userRole, loading } = useAuth();
+  const { user, userRole, loading: authLoading } = useAuth();
   const [localLoading, setLocalLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Debug auth state
+  useEffect(() => {
+    console.log('AppLayout auth state:', { 
+      hasUser: !!user, 
+      userRole, 
+      authLoading, 
+      localLoading,
+      pathname: location.pathname 
+    });
+  }, [user, userRole, authLoading, localLoading, location.pathname]);
 
   // Add a timeout to prevent infinite loading
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (localLoading) {
-        console.warn('Dashboard loading timed out after 8 seconds, resetting loading state');
+        console.warn('Dashboard loading timed out after 5 seconds, resetting loading state');
         setLocalLoading(false);
       }
-    }, 8000);
+    }, 5000); // Reduced from 8s to 5s for better responsiveness
 
     return () => clearTimeout(timeoutId);
   }, [localLoading]);
 
-  // Handle auth state
+  // Handle auth state changes
   useEffect(() => {
-    console.log('AppLayout: User state:', { 
-      hasUser: !!user,
-      role: userRole,
-      id: user?.id,
-      isLoading: loading
-    });
+    let mounted = true;
     
-    if (loading) {
-      setLocalLoading(true);
-      return;
-    }
-    
-    // Allow small delay to ensure everything is loaded
-    const timerId = setTimeout(() => {
-      setLocalLoading(false);
-      
-      if (!user) {
-        console.log('AppLayout: No user, redirecting to login');
-        navigate('/login');
-      } else if (!userRole) {
-        console.log('AppLayout: User has no role, redirecting to role selection');
-        navigate('/role-selection');
+    const checkAuth = async () => {
+      // Only start checks if we're in the loading state
+      if (!authLoading && mounted) {
+        console.log('AppLayout: Auth loading complete, checking user state', {
+          hasUser: !!user,
+          userRole,
+          path: location.pathname
+        });
+        
+        // Wait a little bit before finalizing to ensure both contexts are ready
+        setTimeout(() => {
+          if (mounted) {
+            setLocalLoading(false);
+            
+            if (!user) {
+              console.warn('AppLayout: No user found after auth check, redirecting to login');
+              navigate('/login', { replace: true });
+            } else if (!userRole) {
+              console.warn('AppLayout: User found but no role, redirecting to role selection');
+              navigate('/role-selection', { replace: true });
+            } else {
+              console.log('AppLayout: User authenticated and has role, path:', location.pathname);
+            }
+          }
+        }, 200);
       }
-    }, 500);
+    };
     
-    return () => clearTimeout(timerId);
-  }, [user, userRole, loading, navigate]);
+    checkAuth();
+    
+    return () => {
+      mounted = false;
+    };
+  }, [user, userRole, authLoading, navigate, location]);
 
-  // Show loading state
-  if (loading || localLoading) {
+  // Show loading state only during initial load, not during navigation
+  if (authLoading && localLoading && !location.pathname.includes('/request-feedback')) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <LoadingSpinner fullScreen={false} />
@@ -80,26 +110,39 @@ export function AppLayout() {
     );
   }
 
-  if (!user) {
-    navigate('/login');
+  // Don't redirect if we're already in a navigation transition
+  // This prevents disrupting navigation to request-feedback
+  if (!user && !location.pathname.includes('/request-feedback')) {
+    console.log('AppLayout: No user and not in request-feedback, redirecting to login');
+    navigate('/login', { replace: true });
     return null;
   }
 
-  if (!userRole) {
-    navigate('/role-selection');
+  if (!userRole && !location.pathname.includes('/request-feedback')) {
+    console.log('AppLayout: No role and not in request-feedback, redirecting to role selection');
+    navigate('/role-selection', { replace: true });
     return null;
   }
+
+  // Determine if we should render mentee routes
+  const showMenteeRoutes = isMentee(userRole) || location.pathname.includes('/request-feedback');
+  // Determine if we should render mentor routes
+  const showMentorRoutes = isMentor(userRole) && !location.pathname.includes('/request-feedback');
+  
+  // Set a default role for components that require a non-null value
+  // This ensures type safety while maintaining the actual role when available
+  const safeRole: 'mentee' | 'mentor' = userRole === 'mentor' ? 'mentor' : 'mentee';
 
   return (
     <div className="min-h-screen bg-background">
       <Header 
-        role={userRole}
+        role={safeRole}
         credits={credits}
         onMenuClick={() => setSidebarOpen(true)}
       />
       
       <Sidebar
-        role={userRole}
+        role={safeRole}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -111,8 +154,8 @@ export function AppLayout() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             
-            {/* Role-specific routes */}
-            {userRole === 'mentee' ? (
+            {/* Role-specific routes - allow these routes regardless of exact role match during transitions */}
+            {showMenteeRoutes && (
               <>
                 <Route index element={<MenteeDashboard />} />
                 <Route path="/mentors" element={<MentorsPage />} />
@@ -120,7 +163,9 @@ export function AppLayout() {
                 <Route path="/request-feedback/:mentorId" element={<RequestFeedbackPage />} />
                 <Route path="/feedback-history" element={<FeedbackHistoryPage />} />
               </>
-            ) : (
+            )}
+            
+            {showMentorRoutes && (
               <>
                 <Route index element={<MentorDashboard />} />
                 <Route path="/feedback-history" element={<FeedbackHistoryPage />} />

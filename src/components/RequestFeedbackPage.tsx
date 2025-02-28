@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { LoadingSpinner } from './LoadingSpinner';
 
 interface Mentor {
   id: string;
@@ -21,35 +22,73 @@ export function RequestFeedbackPage() {
   const { mentorId } = useParams<{ mentorId: string }>();
   const navigate = useNavigate();
   const { user: appUser, credits } = useApp();
-  const { user: authUser } = useAuth();
+  const { user: authUser, loading: authLoading } = useAuth();
   const [mentor, setMentor] = useState<Mentor | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [formData, setFormData] = useState({
     link: '',
     description: '',
   });
 
-  // Check authentication on component mount
+  // Log component state for debugging
   useEffect(() => {
-    if (!authUser || !appUser) {
-      console.error('RequestFeedbackPage: No authenticated user found');
-      setError('You must be logged in to request feedback. Please log in and try again.');
-    }
-  }, [authUser, appUser]);
+    console.log('RequestFeedbackPage state:', {
+      mentorId,
+      hasAuthUser: !!authUser,
+      hasAppUser: !!appUser,
+      authLoading,
+      loading,
+      error,
+      authChecked
+    });
+  }, [mentorId, authUser, appUser, authLoading, loading, error, authChecked]);
 
+  // Check authentication on component mount - don't redirect immediately
   useEffect(() => {
-    if (mentorId) {
+    // Only check auth after loading is complete
+    if (!authLoading) {
+      if (!authUser || !appUser) {
+        console.warn('RequestFeedbackPage: Auth check - no user found');
+        setError('You must be logged in to request feedback. Please wait while we confirm your authentication...');
+        
+        // Add a short delay before redirecting to allow session to restore
+        const timerId = setTimeout(() => {
+          if (!authUser || !appUser) {
+            console.error('RequestFeedbackPage: Still no user after delay, redirecting to login');
+            navigate('/login', { replace: true });
+          } else {
+            console.log('RequestFeedbackPage: User found after delay, continuing');
+            setError(null);
+          }
+          setAuthChecked(true);
+        }, 1500);
+        
+        return () => clearTimeout(timerId);
+      } else {
+        console.log('RequestFeedbackPage: Auth check passed, user is authenticated');
+        setAuthChecked(true);
+      }
+    }
+  }, [authUser, appUser, authLoading, navigate]);
+
+  // Fetch mentor data after auth check
+  useEffect(() => {
+    if (authChecked && mentorId) {
       console.log('Fetching mentor with ID:', mentorId);
       fetchMentor();
-    } else {
+    } else if (authChecked && !mentorId) {
       setError('No mentor ID provided');
       console.error('RequestFeedbackPage: No mentor ID in URL params');
+      setLoading(false);
     }
-  }, [mentorId]);
+  }, [mentorId, authChecked]);
 
   async function fetchMentor() {
+    if (!mentorId) return;
+    
     try {
       setLoading(true);
       console.log('Fetching mentor data for ID:', mentorId);
@@ -146,11 +185,14 @@ export function RequestFeedbackPage() {
     }
   }
 
-  if (loading) {
+  // Display loading spinner during auth check
+  if (authLoading || (loading && !error)) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        <span className="ml-3">Loading mentor data...</span>
+      <div className="flex flex-col items-center justify-center p-8">
+        <LoadingSpinner fullScreen={false} />
+        <span className="mt-4 text-center">
+          {!authChecked ? 'Verifying your authentication...' : 'Loading mentor data...'}
+        </span>
       </div>
     );
   }

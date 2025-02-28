@@ -5,7 +5,7 @@ export function MentorsPage() {
   const navigate = useNavigate();
 
   const handleSelectMentor = (mentorId: string) => {
-    navigate(`/request-feedback?mentor=${mentorId}`);
+    navigate(`/request-feedback/${mentorId}`);
   };
 
   return (

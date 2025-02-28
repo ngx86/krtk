@@ -19,32 +19,76 @@ export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { credits } = useApp();
   const { user, userRole, loading } = useAuth();
+  const [localLoading, setLocalLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Add a timeout to prevent infinite loading
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (localLoading) {
+        console.warn('Dashboard loading timed out after 8 seconds, resetting loading state');
+        setLocalLoading(false);
+      }
+    }, 8000);
+
+    return () => clearTimeout(timeoutId);
+  }, [localLoading]);
+
+  // Handle auth state
   useEffect(() => {
     console.log('AppLayout: User state:', { 
       hasUser: !!user,
       role: userRole,
-      id: user?.id
+      id: user?.id,
+      isLoading: loading
     });
     
-    if (!user || !userRole) {
-      console.log('AppLayout: No user or role, redirecting to login');
-      navigate('/login');
+    if (loading) {
+      setLocalLoading(true);
       return;
     }
-  }, [user, userRole, navigate]);
+    
+    // Allow small delay to ensure everything is loaded
+    const timerId = setTimeout(() => {
+      setLocalLoading(false);
+      
+      if (!user) {
+        console.log('AppLayout: No user, redirecting to login');
+        navigate('/login');
+      } else if (!userRole) {
+        console.log('AppLayout: User has no role, redirecting to role selection');
+        navigate('/role-selection');
+      }
+    }, 500);
+    
+    return () => clearTimeout(timerId);
+  }, [user, userRole, loading, navigate]);
 
-  if (loading) {
+  // Show loading state
+  if (loading || localLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex flex-col items-center justify-center min-h-screen">
         <LoadingSpinner fullScreen={false} />
         <p className="ml-2 text-muted-foreground">Loading your dashboard...</p>
+        <button 
+          onClick={() => setLocalLoading(false)} 
+          className="mt-8 text-sm text-blue-500 hover:underline"
+        >
+          Loading taking too long? Click here
+        </button>
       </div>
     );
   }
 
-  if (!user || !userRole) return null;
+  if (!user) {
+    navigate('/login');
+    return null;
+  }
+
+  if (!userRole) {
+    navigate('/role-selection');
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background">

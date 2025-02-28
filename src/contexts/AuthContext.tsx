@@ -59,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     console.log('Initializing auth provider');
     let mounted = true;
+    let timeoutId: number;
     
     // Setup auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -95,15 +96,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
             // Still set the user even if we can't get the role
             setUser(currentUser);
+          } finally {
+            if (mounted) setLoading(false);
           }
         } else {
           if (!mounted) return;
           
           setUser(null);
           setUserRoleState(null);
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
 
@@ -146,9 +148,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (mounted) setLoading(false);
     });
 
+    // Set a global timeout to ensure loading state is never stuck
+    timeoutId = window.setTimeout(() => {
+      if (mounted && loading) {
+        console.warn('Auth loading state was stuck for 10 seconds, forcing reset');
+        setLoading(false);
+      }
+    }, 10000);
+
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      window.clearTimeout(timeoutId);
     };
   }, []);
 

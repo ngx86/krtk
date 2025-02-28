@@ -118,55 +118,74 @@ export async function getUserRole(userId: string): Promise<'mentor' | 'mentee' |
     
     console.log('Fetching role for userId:', userId);
     
+    // Add a timeout promise to prevent hanging
+    const timeoutPromise = new Promise<null>((_, reject) => {
+      setTimeout(() => {
+        console.warn('getUserRole timed out after 5 seconds');
+        reject(new Error('Timeout fetching user role'));
+      }, 5000);
+    });
+    
     // First try with standard select
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', userId)
-      .maybeSingle();
-    
-    if (userError) {
-      console.error('Error fetching user role with standard query:', userError);
+    const fetchRolePromise = (async () => {
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', userId)
+        .maybeSingle();
       
-      // Try alternative approach with explicit headers
-      try {
-        // Get Supabase URL and key from environment variables
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      if (userError) {
+        console.error('Error fetching user role with standard query:', userError);
         
-        const response = await fetch(
-          `${supabaseUrl}/rest/v1/users?id=eq.${userId}&select=role`, 
-          {
-            method: 'GET',
-            headers: {
-              'apikey': supabaseKey,
-              'Authorization': `Bearer ${supabaseKey}`,
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
+        // Try alternative approach with explicit headers
+        try {
+          // Get Supabase URL and key from environment variables
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+          
+          // Make sure we're fetching from the correct table
+          const response = await fetch(
+            `${supabaseUrl}/rest/v1/users?id=eq.${userId}&select=role`, 
+            {
+              method: 'GET',
+              headers: {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              }
             }
+          );
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
           }
-        );
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
+          
+          const data = await response.json();
+          console.log('Fetched user role data via fetch API:', data);
+          
+          if (Array.isArray(data) && data.length > 0) {
+            return data[0].role;
+          }
+          
+          return null;
+        } catch (fetchError) {
+          console.error('Error with alternative fetch approach:', fetchError);
+          return null;
         }
-        
-        const data = await response.json();
-        console.log('Fetched user role data via fetch API:', data);
-        
-        if (Array.isArray(data) && data.length > 0) {
-          return data[0].role;
-        }
-        
-        return null;
-      } catch (fetchError) {
-        console.error('Error with alternative fetch approach:', fetchError);
-        return null;
       }
-    }
+      
+      console.log('Fetched user role data:', userData);
+      return userData?.role || null;
+    })();
     
-    console.log('Fetched user role data:', userData);
-    return userData?.role || null;
+    // Race between the actual fetch and the timeout
+    try {
+      return await Promise.race([fetchRolePromise, timeoutPromise]);
+    } catch (timeoutError) {
+      console.error('Timed out fetching user role:', timeoutError);
+      return null;
+    }
   } catch (error) {
     console.error('Exception fetching user role:', error);
     return null;

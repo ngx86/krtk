@@ -15,21 +15,54 @@ interface AuthContextType {
   user: UserWithRole | null;
   loading: boolean;
   userRole: UserRole;
+  isAuthenticated: boolean;
+  lastAuthCheckTime: number;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
   signInWithEmailAndPassword: (email: string, password: string) => Promise<void>;
   signInWithEmail: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   setUserRole: (role: 'mentor' | 'mentee') => Promise<void>;
   refreshUserRole: () => Promise<void>;
+  checkSessionActive: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Session timeout for navigation within the app (3 minutes)
+const SESSION_NAVIGATION_TIMEOUT = 3 * 60 * 1000;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<UserWithRole | null>(null);
   const [userRole, setUserRoleState] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
+  const [lastAuthCheckTime, setLastAuthCheckTime] = useState<number>(Date.now());
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+
+  // Function to check if session is active (for quick checks during navigation)
+  const checkSessionActive = async (): Promise<boolean> => {
+    // If we've checked recently, return cached result to prevent flicker
+    if (Date.now() - lastAuthCheckTime < SESSION_NAVIGATION_TIMEOUT) {
+      return isAuthenticated;
+    }
+    
+    try {
+      // Update the last check time
+      setLastAuthCheckTime(Date.now());
+      
+      // Check current session
+      const { data } = await supabase.auth.getSession();
+      const sessionActive = !!data.session?.user;
+      
+      console.log('Session active check:', sessionActive);
+      setIsAuthenticated(sessionActive);
+      
+      return sessionActive;
+    } catch (error) {
+      console.error('Error checking session status:', error);
+      return false;
+    }
+  };
 
   // Function to refresh user role
   const refreshUserRole = async (): Promise<void> => {
@@ -59,7 +92,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     console.log('Initializing auth provider');
     let mounted = true;
-    let timeoutId: number;
     
     // Setup auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -69,14 +101,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!mounted) return;
         
         setSession(currentSession);
+        setLastAuthCheckTime(Date.now());
         
         if (currentSession?.user) {
           const currentUser = currentSession.user;
           console.log('User found in session:', currentUser.id);
           
+          setIsAuthenticated(true);
+          
           try {
             // Short delay to ensure Supabase has processed any changes
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 300));
             
             // Get user role
             const role = await authService.getUserRole(currentUser.id);
@@ -104,78 +139,106 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           setUser(null);
           setUserRoleState(null);
+          setIsAuthenticated(false);
           setLoading(false);
         }
       }
     );
 
-    // Get initial session
-    authService.getSession().then(({ data: { session: initialSession } }) => {
-      if (!mounted) return;
-      
-      setSession(initialSession);
-      
-      if (initialSession?.user) {
-        const initialUser = initialSession.user;
-        console.log('Initial user found:', initialUser.id);
+    // Get initial session and hydrate auth state
+    const initializeSession = async () => {
+      try {
+        // Attempt to get session from localstorage first
+        const storedSession = localStorage.getItem('supabase.auth.token');
+        if (storedSession) {
+          console.log('Found stored session data');
+        }
         
-        authService.getUserRole(initialUser.id).then(role => {
+        // Get the actual session from Supabase
+        const { data } = await authService.getSession();
+        const initialSession = data.session;
+        
+        if (!mounted) return;
+        
+        setSession(initialSession);
+        setLastAuthCheckTime(Date.now());
+        
+        if (initialSession?.user) {
+          const initialUser = initialSession.user;
+          console.log('Initial user found:', initialUser.id);
+          
+          setIsAuthenticated(true);
+          
+          try {
+            // Get user role
+            const role = await authService.getUserRole(initialUser.id);
+            console.log('Initial user role:', role);
+            
+            if (!mounted) return;
+            
+            setUserRoleState(role);
+            setUser({
+              ...initialUser,
+              userRole: role
+            });
+          } catch (error) {
+            console.error('Error fetching initial user role:', error);
+            
+            if (!mounted) return;
+            
+            // Still set the user even if we can't get the role
+            setUser(initialUser);
+          }
+        } else {
+          console.log('No initial session found');
+          
           if (!mounted) return;
           
-          console.log('Initial user role:', role);
-          setUserRoleState(role);
-          setUser({
-            ...initialUser,
-            userRole: role
-          });
-        }).catch(error => {
-          console.error('Error getting initial user role:', error);
-          
-          if (!mounted) return;
-          
-          // Set user even if we can't get role
-          setUser(initialUser);
-        }).finally(() => {
-          if (mounted) setLoading(false);
-        });
-      } else {
+          setUser(null);
+          setUserRoleState(null);
+          setIsAuthenticated(false);
+        }
+      } catch (error) {
+        console.error('Error initializing session:', error);
+        
+        if (!mounted) return;
+        
+        setUser(null);
+        setUserRoleState(null);
+        setIsAuthenticated(false);
+      } finally {
         if (mounted) {
           setLoading(false);
         }
       }
-    }).catch(error => {
-      console.error('Error getting initial session:', error);
-      if (mounted) setLoading(false);
-    });
-
-    // Set a global timeout to ensure loading state is never stuck
-    timeoutId = window.setTimeout(() => {
-      if (mounted && loading) {
-        console.warn('Auth loading state was stuck for 10 seconds, forcing reset');
-        setLoading(false);
-      }
-    }, 10000);
+    };
+    
+    // Initialize session
+    initializeSession();
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
-      window.clearTimeout(timeoutId);
+      subscription?.unsubscribe();
     };
   }, []);
 
-  // Email OTP (magic link) authentication
-  const signInWithEmail = async (email: string) => {
+  // Function to set user role
+  const setUserRole = async (role: 'mentor' | 'mentee'): Promise<void> => {
+    if (!user?.id) {
+      throw new Error('Cannot set role: No user ID');
+    }
+    
     try {
-      console.log('Signing in with magic link:', email);
       setLoading(true);
       
-      const { error } = await authService.signInWithOtp(email);
+      await authService.storeUserRole(user.id, user.email, role);
+      console.log('Role set successfully:', role);
       
-      if (error) throw error;
-      
-      console.log('Magic link sent successfully');
+      // Update local state
+      setUserRoleState(role);
+      setUser(prev => prev ? {...prev, userRole: role} : null);
     } catch (error) {
-      console.error('Error sending magic link:', error);
+      console.error('Error setting user role:', error);
       throw error;
     } finally {
       setLoading(false);
@@ -183,16 +246,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Sign up with email and password
-  const signUpWithEmail = async (email: string, password: string) => {
+  const signUpWithEmail = async (email: string, password: string): Promise<void> => {
     try {
-      console.log('Signing up with email and password:', email);
       setLoading(true);
       
+      console.log('Attempting to sign up with email:', email);
       const { error } = await authService.signUp(email, password);
       
       if (error) throw error;
       
-      console.log('Sign up successful');
+      console.log('Sign up successful, awaiting email verification');
     } catch (error) {
       console.error('Error signing up:', error);
       throw error;
@@ -201,17 +264,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Sign in with email and password
-  const signInWithEmailAndPassword = async (email: string, password: string) => {
+  // Login with email and password
+  const signInWithEmailAndPassword = async (email: string, password: string): Promise<void> => {
     try {
-      console.log('Signing in with email and password:', email);
       setLoading(true);
       
+      console.log('Attempting to sign in with email and password:', email);
       const { error } = await authService.signInWithPassword(email, password);
       
       if (error) throw error;
       
-      console.log('Sign in successful');
+      console.log('Sign in with password successful');
+      setLastAuthCheckTime(Date.now());
+      setIsAuthenticated(true);
     } catch (error) {
       console.error('Error signing in with password:', error);
       throw error;
@@ -220,71 +285,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Sign out
-  const signOut = async () => {
+  // Login with magic link (OTP)
+  const signInWithEmail = async (email: string): Promise<void> => {
     try {
-      console.log('Signing out user');
       setLoading(true);
       
-      const { error } = await authService.signOut();
+      console.log('Attempting to sign in with magic link:', email);
+      const { error } = await authService.signInWithOtp(email);
+      
       if (error) throw error;
       
-      console.log('Sign out successful');
-      
-      // Reset all auth-related state
-      setSession(null);
-      setUser(null);
-      setUserRoleState(null);
-      
-      // Ensure we're not stuck in loading state
-      setLoading(false);
+      console.log('Sign in with magic link email sent');
     } catch (error) {
-      console.error('Error signing out:', error);
-      
-      // Even if there's an error, reset state and ensure we're not in loading state
-      setSession(null);
-      setUser(null);
-      setUserRoleState(null);
-      setLoading(false);
-      
+      console.error('Error signing in with magic link:', error);
       throw error;
     } finally {
-      // Triple check we're not in loading state
       setLoading(false);
     }
   };
 
-  // Set user role in database
-  const setUserRole = async (role: 'mentor' | 'mentee'): Promise<void> => {
-    if (!user?.id) {
-      console.error('Cannot set role: No authenticated user');
-      throw new Error('Cannot set role: User not authenticated');
-    }
-    
+  // Sign out
+  const signOut = async (): Promise<void> => {
     try {
-      console.log('Setting user role:', role, 'for user:', user.id);
       setLoading(true);
       
-      // Set local state immediately for better UX
-      setUserRoleState(role);
-      setUser(prev => prev ? {...prev, userRole: role} : null);
+      console.log('Attempting to sign out');
+      const { error } = await authService.signOut();
       
-      // Then update in the database
-      await authService.storeUserRole(user.id, user.email, role);
+      if (error) throw error;
       
-      console.log('User role set successfully');
+      // Clear local state
+      setSession(null);
+      setUser(null);
+      setUserRoleState(null);
+      setIsAuthenticated(false);
+      setLastAuthCheckTime(Date.now());
       
-      // Add delay before refreshing to ensure the update has propagated
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      await refreshUserRole();
-      
+      console.log('Sign out successful');
     } catch (error) {
-      console.error('Error setting user role:', error);
-      
-      // If database update failed, we should still have a working app with the local state
-      // Don't revert the local state as this would create a confusing UX
-      // The next page refresh will attempt to sync with the database again
-      
+      console.error('Error signing out:', error);
       throw error;
     } finally {
       setLoading(false);
@@ -292,18 +331,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{
-      session,
-      user,
-      loading,
-      userRole,
-      signUpWithEmail,
-      signInWithEmailAndPassword,
-      signInWithEmail,
-      signOut,
-      setUserRole,
-      refreshUserRole
-    }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        user,
+        loading,
+        userRole,
+        isAuthenticated,
+        lastAuthCheckTime,
+        signUpWithEmail,
+        signInWithEmailAndPassword,
+        signInWithEmail,
+        signOut,
+        setUserRole,
+        refreshUserRole,
+        checkSessionActive,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

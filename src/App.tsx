@@ -104,7 +104,7 @@ function ProtectedRoleSelection() {
 }
 
 function ProtectedRoute() {
-  const { user, userRole, loading } = useAuth();
+  const { user, userRole, loading, isAuthenticated, checkSessionActive } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [checkingStatus, setCheckingStatus] = useState(true);
@@ -120,14 +120,29 @@ function ProtectedRoute() {
           userId: user?.id,
           userRole,
           loading,
+          isAuthenticated,
           path: location.pathname
         });
         
         // Wait for auth to finish loading
         if (loading) return;
         
-        if (!user) {
-          console.log('ProtectedRoute: No user, redirecting to login');
+        // For navigation to dashboard routes, do a quick session check first
+        // This prevents unnecessary redirects during navigation
+        if (location.pathname.includes('/dashboard')) {
+          const sessionActive = await checkSessionActive();
+          console.log('ProtectedRoute: Session active check:', sessionActive);
+          
+          if (!sessionActive) {
+            console.log('ProtectedRoute: Session not active, redirecting to login');
+            navigate('/login', { replace: true });
+            return;
+          }
+        }
+        
+        // Now do a full auth check
+        if (!user || !isAuthenticated) {
+          console.log('ProtectedRoute: No user or not authenticated, redirecting to login');
           navigate('/login', { replace: true });
           return;
         }
@@ -155,7 +170,7 @@ function ProtectedRoute() {
     return () => {
       mounted = false;
     };
-  }, [user, loading, userRole, navigate, location.pathname]);
+  }, [user, userRole, loading, isAuthenticated, navigate, location, checkSessionActive]);
 
   if (loading || checkingStatus) {
     return (

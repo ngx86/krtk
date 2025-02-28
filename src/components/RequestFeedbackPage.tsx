@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useApp } from '../contexts/AppContext';
@@ -22,12 +22,13 @@ export function RequestFeedbackPage() {
   const { mentorId } = useParams<{ mentorId: string }>();
   const navigate = useNavigate();
   const { user: appUser, credits } = useApp();
-  const { user: authUser, loading: authLoading } = useAuth();
+  const { user: authUser, loading: authLoading, isAuthenticated, checkSessionActive } = useAuth();
   const [mentor, setMentor] = useState<Mentor | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [sessionValid, setSessionValid] = useState<boolean | null>(null);
   const [formData, setFormData] = useState({
     link: '',
     description: '',
@@ -42,49 +43,85 @@ export function RequestFeedbackPage() {
       authLoading,
       loading,
       error,
-      authChecked
+      authChecked,
+      isAuthenticated,
+      sessionValid
     });
-  }, [mentorId, authUser, appUser, authLoading, loading, error, authChecked]);
+  }, [mentorId, authUser, appUser, authLoading, loading, error, authChecked, isAuthenticated, sessionValid]);
+
+  // Check session status without redirecting immediately
+  const validateSession = useCallback(async () => {
+    try {
+      console.log('RequestFeedbackPage: Validating session');
+      const isSessionActive = await checkSessionActive();
+      console.log('RequestFeedbackPage: Session active:', isSessionActive);
+      setSessionValid(isSessionActive);
+      return isSessionActive;
+    } catch (err) {
+      console.error('RequestFeedbackPage: Session check error', err);
+      setSessionValid(false);
+      return false;
+    }
+  }, [checkSessionActive]);
 
   // Check authentication on component mount - don't redirect immediately
   useEffect(() => {
     // Only check auth after loading is complete
     if (!authLoading) {
-      if (!authUser || !appUser) {
-        console.warn('RequestFeedbackPage: Auth check - no user found');
-        setError('You must be logged in to request feedback. Please wait while we confirm your authentication...');
-        
-        // Add a short delay before redirecting to allow session to restore
-        const timerId = setTimeout(() => {
-          if (!authUser || !appUser) {
-            console.error('RequestFeedbackPage: Still no user after delay, redirecting to login');
-            navigate('/login', { replace: true });
-          } else {
-            console.log('RequestFeedbackPage: User found after delay, continuing');
-            setError(null);
-          }
+      const checkAuth = async () => {
+        // If already authenticated, mark as checked and continue
+        if (isAuthenticated && authUser && appUser) {
+          console.log('RequestFeedbackPage: Already authenticated, continuing');
           setAuthChecked(true);
-        }, 1500);
+          setSessionValid(true);
+          return;
+        }
         
-        return () => clearTimeout(timerId);
-      } else {
-        console.log('RequestFeedbackPage: Auth check passed, user is authenticated');
-        setAuthChecked(true);
-      }
+        // Not authenticated yet, check session
+        console.warn('RequestFeedbackPage: Not authenticated, checking session');
+        const validSession = await validateSession();
+        
+        if (!validSession) {
+          // If session isn't valid, delay redirect briefly to allow for potential auth state recovery
+          console.error('RequestFeedbackPage: Invalid session, preparing to redirect');
+          setError('You must be logged in to request feedback. Please wait while we confirm your authentication...');
+          
+          // Add a short delay before redirecting
+          setTimeout(() => {
+            if (!isAuthenticated) {
+              console.error('RequestFeedbackPage: Still not authenticated after delay, redirecting to login');
+              navigate('/login', { replace: true });
+            } else {
+              console.log('RequestFeedbackPage: Authentication restored during delay, continuing');
+              setError(null);
+              setAuthChecked(true);
+              setSessionValid(true);
+            }
+          }, 1500);
+        } else {
+          // Session is valid
+          console.log('RequestFeedbackPage: Session valid, continuing');
+          setAuthChecked(true);
+          setSessionValid(true);
+          setError(null);
+        }
+      };
+      
+      checkAuth();
     }
-  }, [authUser, appUser, authLoading, navigate]);
+  }, [authUser, appUser, authLoading, isAuthenticated, navigate, validateSession]);
 
   // Fetch mentor data after auth check
   useEffect(() => {
-    if (authChecked && mentorId) {
+    if (authChecked && sessionValid && mentorId) {
       console.log('Fetching mentor with ID:', mentorId);
       fetchMentor();
-    } else if (authChecked && !mentorId) {
+    } else if (authChecked && sessionValid && !mentorId) {
       setError('No mentor ID provided');
       console.error('RequestFeedbackPage: No mentor ID in URL params');
       setLoading(false);
     }
-  }, [mentorId, authChecked]);
+  }, [mentorId, authChecked, sessionValid]);
 
   async function fetchMentor() {
     if (!mentorId) return;
@@ -127,6 +164,15 @@ export function RequestFeedbackPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    
+    // First check if session is still valid before proceeding
+    const isValid = await validateSession();
+    if (!isValid) {
+      setError('Your session has expired. Please log in again.');
+      setTimeout(() => navigate('/login', { replace: true }), 1500);
+      return;
+    }
+    
     if (!mentor || !appUser) {
       console.error('Cannot submit: Missing mentor or user data');
       setError('Missing required data. Please try again.');
@@ -186,7 +232,7 @@ export function RequestFeedbackPage() {
   }
 
   // Display loading spinner during auth check
-  if (authLoading || (loading && !error)) {
+  if (authLoading || (loading && !error) || sessionValid === null) {
     return (
       <div className="flex flex-col items-center justify-center p-8">
         <LoadingSpinner fullScreen={false} />

@@ -27,7 +27,7 @@ function isMentor(role: 'mentor' | 'mentee' | null): role is 'mentor' {
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { credits } = useApp();
-  const { user, userRole, loading: authLoading } = useAuth();
+  const { user, userRole, loading: authLoading, isAuthenticated, checkSessionActive } = useAuth();
   const [localLoading, setLocalLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
@@ -39,9 +39,10 @@ export function AppLayout() {
       userRole, 
       authLoading, 
       localLoading,
+      isAuthenticated,
       pathname: location.pathname 
     });
-  }, [user, userRole, authLoading, localLoading, location.pathname]);
+  }, [user, userRole, authLoading, localLoading, isAuthenticated, location.pathname]);
 
   // Add a timeout to prevent infinite loading
   useEffect(() => {
@@ -65,23 +66,44 @@ export function AppLayout() {
         console.log('AppLayout: Auth loading complete, checking user state', {
           hasUser: !!user,
           userRole,
+          isAuthenticated,
           path: location.pathname
         });
         
+        // For internal navigation, just check if session still active
+        // This prevents repeated full auth checks during internal navigation
+        if (location.pathname.includes('/dashboard')) {
+          // Skip the check for request-feedback routes since they handle their own auth
+          if (location.pathname.includes('/request-feedback')) {
+            console.log('AppLayout: In request-feedback route, skipping auth check');
+            setLocalLoading(false);
+            return;
+          }
+          
+          // Use the quick session check for other routes
+          const sessionActive = await checkSessionActive();
+          
+          if (!sessionActive) {
+            console.warn('AppLayout: Session check failed, redirecting to login');
+            navigate('/login', { replace: true });
+            return;
+          }
+        }
+        
         // Wait a little bit before finalizing to ensure both contexts are ready
         setTimeout(() => {
-          if (mounted) {
-            setLocalLoading(false);
-            
-            if (!user) {
-              console.warn('AppLayout: No user found after auth check, redirecting to login');
-              navigate('/login', { replace: true });
-            } else if (!userRole) {
-              console.warn('AppLayout: User found but no role, redirecting to role selection');
-              navigate('/role-selection', { replace: true });
-            } else {
-              console.log('AppLayout: User authenticated and has role, path:', location.pathname);
-            }
+          if (!mounted) return;
+          
+          setLocalLoading(false);
+          
+          if (!isAuthenticated || !user) {
+            console.warn('AppLayout: No user found after auth check, redirecting to login');
+            navigate('/login', { replace: true });
+          } else if (!userRole) {
+            console.warn('AppLayout: User found but no role, redirecting to role selection');
+            navigate('/role-selection', { replace: true });
+          } else {
+            console.log('AppLayout: User authenticated and has role, path:', location.pathname);
           }
         }, 200);
       }
@@ -92,7 +114,7 @@ export function AppLayout() {
     return () => {
       mounted = false;
     };
-  }, [user, userRole, authLoading, navigate, location]);
+  }, [user, userRole, authLoading, isAuthenticated, navigate, location, checkSessionActive]);
 
   // Show loading state only during initial load, not during navigation
   if (authLoading && localLoading && !location.pathname.includes('/request-feedback')) {
@@ -110,24 +132,26 @@ export function AppLayout() {
     );
   }
 
-  // Don't redirect if we're already in a navigation transition
-  // This prevents disrupting navigation to request-feedback
-  if (!user && !location.pathname.includes('/request-feedback')) {
-    console.log('AppLayout: No user and not in request-feedback, redirecting to login');
+  // Skip these checks for request-feedback pages which handle their own auth
+  const inRequestFeedbackRoute = location.pathname.includes('/request-feedback');
+  
+  // Don't redirect if we're in a request-feedback route
+  if (!isAuthenticated && !user && !inRequestFeedbackRoute) {
+    console.log('AppLayout: Not authenticated, redirecting to login');
     navigate('/login', { replace: true });
     return null;
   }
 
-  if (!userRole && !location.pathname.includes('/request-feedback')) {
-    console.log('AppLayout: No role and not in request-feedback, redirecting to role selection');
+  if (!userRole && !inRequestFeedbackRoute) {
+    console.log('AppLayout: No role, redirecting to role selection');
     navigate('/role-selection', { replace: true });
     return null;
   }
 
   // Determine if we should render mentee routes
-  const showMenteeRoutes = isMentee(userRole) || location.pathname.includes('/request-feedback');
+  const showMenteeRoutes = isMentee(userRole) || inRequestFeedbackRoute;
   // Determine if we should render mentor routes
-  const showMentorRoutes = isMentor(userRole) && !location.pathname.includes('/request-feedback');
+  const showMentorRoutes = isMentor(userRole) && !inRequestFeedbackRoute;
   
   // Set a default role for components that require a non-null value
   // This ensures type safety while maintaining the actual role when available

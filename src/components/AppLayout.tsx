@@ -145,14 +145,34 @@ export function AppLayout() {
     return null;
   }
 
-  // CRITICAL FIX: Only redirect to role selection if auth is finished loading and there's definitely no role
-  // Skip this check for request-feedback routes which can work with a default role
-  // IMPORTANT: Only redirect if we're authenticated - otherwise let the auth flow handle it
-  if (!userRole && !inRequestFeedbackRoute && !authLoading && isAuthenticated) {
-    console.log('AppLayout: User authenticated but no role, redirecting to role selection');
-    navigate('/role-selection', { replace: true });
-    return null;
-  }
+  // Replace the immediate redirect with a debounced version
+  useEffect(() => {
+    // Skip auth checks during transitions to prevent flickering
+    if (authLoading) return;
+    
+    // Only proceed if we're definitely not in a request-feedback route
+    if (!inRequestFeedbackRoute) {
+      let redirectTimeout: NodeJS.Timeout | null = null;
+      
+      // Check if we need to redirect due to missing role
+      if (!userRole && !authLoading && isAuthenticated) {
+        console.log('AppLayout: User authenticated but no role, preparing to redirect');
+        
+        // Add a delay before redirecting to allow state to settle
+        redirectTimeout = setTimeout(() => {
+          // Double-check authentication state before redirecting
+          if (isAuthenticated && !userRole) {
+            console.log('AppLayout: Still no role after delay, redirecting to role selection');
+            navigate('/role-selection', { replace: true });
+          }
+        }, 500); // 500ms delay gives time for role state to update
+      }
+      
+      return () => {
+        if (redirectTimeout) clearTimeout(redirectTimeout);
+      };
+    }
+  }, [userRole, authLoading, isAuthenticated, inRequestFeedbackRoute, navigate]);
 
   // Determine if we should render mentee routes - INCLUDE routes when role is loading
   // This allows navigation during role fetch timeouts

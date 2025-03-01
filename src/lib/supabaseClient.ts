@@ -36,6 +36,19 @@ export const getRedirectUrl = (path: string): string => {
   return `${currentDomain}${path}`;
 };
 
+// Safe localStorage access function for reuse
+export const safeGetLocalStorage = (key: string): string | null => {
+  try {
+    if (typeof window !== 'undefined') {
+      return window.localStorage.getItem(key);
+    }
+    return null;
+  } catch (err) {
+    console.error('Error accessing localStorage:', err);
+    return null;
+  }
+};
+
 // Configure the Supabase client
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
@@ -46,6 +59,13 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     // Store everything in cookies to work better across different domains
     storageKey: 'supabase.auth.token',
     flowType: 'pkce',
+    // Add debug log for session - helps with troubleshooting
+    debug: true
   },
 });
+
+// Add helper function to check if we have a token
+export const hasAuthToken = (): boolean => {
+  return !!safeGetLocalStorage('supabase.auth.token');
+};
 

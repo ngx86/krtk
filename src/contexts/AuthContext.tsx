@@ -66,10 +66,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSessionChecks(prev => prev + 1);
     const checkCount = sessionChecks + 1;
     
+    // IMPORTANT FIX: If we're checking repeatedly in a short time, trust cached state
+    // This prevents logout during rapid navigation
+    if (checkCount > 1 && Date.now() - lastAuthCheckTime < 2000) {
+      console.log(`Rapid navigation detected (check #${checkCount}), using cached auth:`, isAuthenticated);
+      // Always trust the cached state during rapid navigation to prevent logout flicker
+      return isAuthenticated || !!localStorage.getItem('supabase.auth.token');
+    }
+    
     // Use different timeout durations based on domain
     const timeoutDuration = isMainDomain 
-      ? SESSION_NAVIGATION_TIMEOUT // Standard timeout for main domain
-      : (isVercelPreview ? SESSION_NAVIGATION_TIMEOUT * 2 : SESSION_NAVIGATION_TIMEOUT * 1.5); // Adjust timeout based on domain
+      ? SESSION_NAVIGATION_TIMEOUT 
+      : (isVercelPreview ? SESSION_NAVIGATION_TIMEOUT * 2 : SESSION_NAVIGATION_TIMEOUT * 1.5);
     
     // If we've checked recently and have a valid session, use cached result
     if (isAuthenticated && Date.now() - lastAuthCheckTime < timeoutDuration) {
@@ -217,6 +225,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('Refreshing session');
       
+      // Attempt to get local token first to avoid unnecessary redirects
+      const hasLocalToken = typeof window !== 'undefined' && 
+        !!localStorage.getItem('supabase.auth.token');
+        
+      if (hasLocalToken) {
+        console.log('Found local token during refresh, setting authenticated temporarily');
+        // Set authenticated first to prevent flickering
+        setIsAuthenticated(true);
+      }
+      
       // Get current session
       const { session: currentSession, error } = await authService.getSession();
       
@@ -227,26 +245,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (!currentSession) {
         console.log('No session found during refresh');
-        setUser(null);
-        setUserRoleState(null);
-        setIsAuthenticated(false);
+        
+        // IMPORTANT: Only clear auth state if we're certain there's no token
+        // This gives preference to keeping users logged in during transient states
+        if (!hasLocalToken) {
+          setUser(null);
+          setUserRoleState(null);
+          setIsAuthenticated(false);
+        } else {
+          console.log('No session but token exists - maintaining auth state');
+        }
         return;
       }
       
-      // Important: Update authentication state immediately, regardless of role fetch success
+      // Update auth state with session info
       setSession(currentSession);
       setLastAuthCheckTime(Date.now());
       setIsAuthenticated(true);
       
-      // Keep track of the current user
+      // Update user info
       const currentUser = currentSession.user;
+      setUser(currentUser);
       
-      // If we don't have a user object yet, set it even without role
-      if (!user) {
-        setUser(currentUser);
-      }
-      
-      // Fetch role in background without blocking authentication
+      // Fetch role in background
       fetchUserRoleInBackground(currentUser.id);
       
       console.log('Session refreshed successfully');

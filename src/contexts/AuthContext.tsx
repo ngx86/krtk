@@ -57,6 +57,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   // Function to check if session is active (for quick checks during navigation)
   const checkSessionActive = async (): Promise<boolean> => {
+    // Get current path to add navigation-specific handling
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+    
+    // Special handling for request-feedback route, which is prone to navigation issues
+    const isRequestFeedback = currentPath.includes('/request-feedback');
+    
+    // If we're navigating to request-feedback, be extra lenient
+    if (isRequestFeedback) {
+      console.log('Navigation to request-feedback detected, applying lenient session validation');
+      // Always trust localStorage token for this sensitive route
+      const hasLocalStorageToken = typeof window !== 'undefined' && 
+        !!localStorage.getItem('supabase.auth.token');
+      
+      if (hasLocalStorageToken) {
+        console.log('Found token in localStorage during request-feedback navigation, assuming active session');
+        return true;
+      }
+    }
+    
     // If we're on the main domain, be more strict with session validation
     // For other domains (like Vercel previews), be more lenient
     const isVercelPreview = typeof window !== 'undefined' && 

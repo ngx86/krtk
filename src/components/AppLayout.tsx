@@ -212,6 +212,7 @@ export function AppLayout() {
                 <Route index element={<MenteeDashboard />} />
                 <Route path="/mentors" element={<MentorsPage />} />
                 <Route path="/credits" element={<CreditsPage />} />
+                <Route path="/request-feedback" element={<Navigate to="/mentors" replace />} />
                 <Route path="/request-feedback/:mentorId" element={<RequestFeedbackPage />} />
                 <Route path="/feedback-history" element={<FeedbackHistoryPage />} />
               </>

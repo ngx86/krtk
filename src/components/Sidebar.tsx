@@ -25,7 +25,7 @@ const sidebarLinks = {
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/dashboard/mentors", label: "Find Mentors", icon: Users },
     { href: "/dashboard/credits", label: "Credits", icon: CreditCard },
-    { href: "/dashboard/request-feedback", label: "Request Feedback", icon: FileText },
+    { href: "/dashboard/mentors", label: "Request Feedback", icon: FileText },
   ],
   mentor: [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },

@@ -19,6 +19,30 @@ export const isMainDomain = isBrowser &&
 // Get the current domain for url construction
 const currentDomain = isBrowser ? window.location.origin : 'https://www.rvzn.app';
 
+// CRITICAL FIX: Extract the domain for cookie handling
+const getDomain = (): string | undefined => {
+  if (!isBrowser) return undefined;
+  
+  const hostname = window.location.hostname;
+  
+  // For localhost, return undefined (browser will use localhost)
+  if (hostname === 'localhost') return undefined;
+  
+  // For all other domains, strip subdomains to get root domain for cookie sharing
+  // This handles both www.rvzn.app and rvzn.app by setting cookie domain to .rvzn.app
+  const segments = hostname.split('.');
+  
+  // Handle cases like "app.example.com" or "www.example.com"
+  if (segments.length > 2) {
+    // Remove the first segment (subdomain) and prepend with dot
+    // This makes cookies work for all subdomains
+    return '.' + segments.slice(1).join('.');
+  } 
+  
+  // Handle cases like "example.com" - prepend with dot for all subdomains
+  return '.' + hostname;
+};
+
 // Determine redirect URL for auth callbacks
 export const getRedirectUrl = (path: string): string => {
   // In development, use localhost
@@ -26,13 +50,8 @@ export const getRedirectUrl = (path: string): string => {
     return `http://localhost:${window.location.port}${path}`;
   }
   
-  // Always use the www subdomain for auth on production (main site)
-  // This must match the site URL configured in Supabase
-  if (isMainDomain) {
-    return `https://www.rvzn.app${path}`;
-  }
-  
-  // For preview deployments and other environments, use current origin
+  // For production and all other environments, use CURRENT origin
+  // This is critical - we want the redirect to go back to where the user came from
   return `${currentDomain}${path}`;
 };
 
@@ -63,6 +82,16 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     debug: true
   },
 });
+
+// Log important auth domain info when in browser
+if (isBrowser) {
+  console.log('Supabase Auth initialized on:', {
+    hostname: window.location.hostname,
+    origin: window.location.origin,
+    cookieDomain: getDomain(),
+    isMainDomain
+  });
+}
 
 // Add helper function to check if we have a token
 export const hasAuthToken = (): boolean => {

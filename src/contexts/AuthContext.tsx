@@ -233,30 +233,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
-      // Update the session state
+      // Important: Update authentication state immediately, regardless of role fetch success
       setSession(currentSession);
       setLastAuthCheckTime(Date.now());
       setIsAuthenticated(true);
       
-      // Get user data and role
-      try {
-        const currentUser = currentSession.user;
-        
-        // Get user role
-        const role = await authService.getUserRole(currentUser.id);
-        
-        setUserRoleState(role);
-        setUser({
-          ...currentUser,
-          userRole: role
-        });
-        
-        console.log('Session refreshed successfully');
-      } catch (error) {
-        console.error('Error getting user data during refresh:', error);
+      // Keep track of the current user
+      const currentUser = currentSession.user;
+      
+      // If we don't have a user object yet, set it even without role
+      if (!user) {
+        setUser(currentUser);
       }
+      
+      // Fetch role in background without blocking authentication
+      fetchUserRoleInBackground(currentUser.id);
+      
+      console.log('Session refreshed successfully');
     } catch (error) {
       console.error('Error in refreshSession:', error);
+    }
+  };
+  
+  // Helper function to fetch user role in background
+  const fetchUserRoleInBackground = async (userId: string) => {
+    try {
+      const role = await authService.getUserRole(userId);
+      
+      // Update role state
+      setUserRoleState(role);
+      
+      // Update user object with role
+      setUser(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          userRole: role
+        };
+      });
+      
+      console.log('User role fetched successfully:', role);
+    } catch (error) {
+      console.error('Error fetching user role in background:', error);
+      // Continue without throwing to maintain authentication state
     }
   };
 
@@ -272,6 +291,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (!mounted) return;
         
+        // Always update session state immediately
         setSession(currentSession);
         setLastAuthCheckTime(Date.now());
         
@@ -279,33 +299,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const currentUser = currentSession.user;
           console.log('User found in session:', currentUser.id);
           
+          // Set authenticated immediately - don't wait for role
           setIsAuthenticated(true);
+          setUser(currentUser);
           
-          try {
-            // Short delay to ensure Supabase has processed any changes
-            await new Promise(resolve => setTimeout(resolve, 300));
-            
-            // Get user role
-            const role = await authService.getUserRole(currentUser.id);
-            console.log('User role after auth change:', role);
-            
-            if (!mounted) return;
-            
-            setUserRoleState(role);
-            setUser({
-              ...currentUser,
-              userRole: role
-            });
-          } catch (error) {
-            console.error('Error fetching user role:', error);
-            
-            if (!mounted) return;
-            
-            // Still set the user even if we can't get the role
-            setUser(currentUser);
-          } finally {
-            if (mounted) setLoading(false);
-          }
+          // Fetch role in background - won't block authentication
+          fetchUserRoleInBackground(currentUser.id);
+          
+          // Set loading to false after basic auth is established
+          setLoading(false);
         } else {
           if (!mounted) return;
           
@@ -335,6 +337,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (!mounted) return;
         
+        // Always update session state immediately
         setSession(initialSession);
         setLastAuthCheckTime(Date.now());
         
@@ -342,32 +345,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const initialUser = initialSession.user;
           console.log('Initial user found:', initialUser.id);
           
+          // Set authenticated immediately - don't wait for role
           setIsAuthenticated(true);
+          setUser(initialUser);
           
-          try {
-            // Get user role
-            const role = await authService.getUserRole(initialUser.id);
-            console.log('Initial user role:', role);
-            
-            if (!mounted) return;
-            
-            setUserRoleState(role);
-            setUser({
-              ...initialUser,
-              userRole: role
-            });
-          } catch (error) {
-            console.error('Error fetching initial user role:', error);
-            
-            if (!mounted) return;
-            
-            // Still set the user even if we can't get the role
-            setUser(initialUser);
-          }
+          // Fetch role in background - won't block authentication
+          fetchUserRoleInBackground(initialUser.id);
         } else {
           console.log('No initial session found');
-          
-          if (!mounted) return;
           
           setUser(null);
           setUserRoleState(null);
@@ -375,16 +360,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error('Error initializing session:', error);
-        
-        if (!mounted) return;
-        
-        setUser(null);
-        setUserRoleState(null);
-        setIsAuthenticated(false);
       } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        if (mounted) setLoading(false);
       }
     };
     

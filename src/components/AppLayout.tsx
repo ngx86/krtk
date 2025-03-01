@@ -15,15 +15,6 @@ import { EarningsPage } from './EarningsPage';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from './LoadingSpinner';
 
-// Type safety for role comparison
-function isMentee(role: 'mentor' | 'mentee' | null): role is 'mentee' {
-  return role === 'mentee';
-}
-
-function isMentor(role: 'mentor' | 'mentee' | null): role is 'mentor' {
-  return role === 'mentor';
-}
-
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { credits } = useApp();
@@ -156,18 +147,19 @@ export function AppLayout() {
 
   // CRITICAL FIX: Only redirect to role selection if auth is finished loading and there's definitely no role
   // Skip this check for request-feedback routes which can work with a default role
-  if (!userRole && !inRequestFeedbackRoute && !authLoading) {
-    console.log('AppLayout: No role, redirecting to role selection');
+  // IMPORTANT: Only redirect if we're authenticated - otherwise let the auth flow handle it
+  if (!userRole && !inRequestFeedbackRoute && !authLoading && isAuthenticated) {
+    console.log('AppLayout: User authenticated but no role, redirecting to role selection');
     navigate('/role-selection', { replace: true });
     return null;
   }
 
   // Determine if we should render mentee routes - INCLUDE routes when role is loading
   // This allows navigation during role fetch timeouts
-  const showMenteeRoutes = isMentee(userRole) || inRequestFeedbackRoute || authLoading;
+  const showMenteeRoutes = userRole === 'mentee' || (!userRole && isAuthenticated) || inRequestFeedbackRoute;
   
   // Determine if we should render mentor routes - more strict, require confirmed mentor role
-  const showMentorRoutes = isMentor(userRole) && !inRequestFeedbackRoute;
+  const showMentorRoutes = userRole === 'mentor' && !inRequestFeedbackRoute;
   
   // Set a default role for components that require a non-null value
   // This ensures type safety while maintaining the actual role when available

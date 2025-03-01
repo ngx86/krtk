@@ -174,6 +174,34 @@ export async function storeUserRole(userId: string, email: string | undefined, r
 }
 
 // Fetch user role from database
+// Cache user roles to avoid repeated database calls
+const userRoleCache: Record<string, {role: 'mentor' | 'mentee' | null, timestamp: number}> = {};
+const ROLE_CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+
+// Safe localStorage access function
+const safeGetItem = (key: string): string | null => {
+  try {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(key);
+    }
+    return null;
+  } catch (err) {
+    console.error('Error accessing localStorage:', err);
+    return null;
+  }
+};
+
+// Safe localStorage set function
+const safeSetItem = (key: string, value: string): void => {
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(key, value);
+    }
+  } catch (err) {
+    console.error('Error setting localStorage:', err);
+  }
+};
+
 export async function getUserRole(userId: string): Promise<'mentor' | 'mentee' | null> {
   try {
     if (!userId) {
@@ -181,14 +209,40 @@ export async function getUserRole(userId: string): Promise<'mentor' | 'mentee' |
       return null;
     }
     
+    // Check cache first (memory)
+    const cachedData = userRoleCache[userId];
+    if (cachedData && (Date.now() - cachedData.timestamp < ROLE_CACHE_DURATION)) {
+      console.log('Using cached user role:', cachedData.role);
+      return cachedData.role;
+    }
+    
+    // Try localStorage cache
+    const localStorageKey = `user_role_${userId}`;
+    const localStorageCache = safeGetItem(localStorageKey);
+    
+    if (localStorageCache) {
+      try {
+        const parsed = JSON.parse(localStorageCache);
+        if (parsed && parsed.role && parsed.timestamp && 
+            (Date.now() - parsed.timestamp < ROLE_CACHE_DURATION)) {
+          console.log('Using localStorage cached role:', parsed.role);
+          // Update memory cache
+          userRoleCache[userId] = parsed;
+          return parsed.role;
+        }
+      } catch (e) {
+        console.error('Error parsing cached role:', e);
+      }
+    }
+    
     console.log('Fetching role for userId:', userId);
     
     // Add a timeout promise to prevent hanging
     const timeoutPromise = new Promise<null>((_, reject) => {
       setTimeout(() => {
-        console.warn('getUserRole timed out after 10 seconds');
+        console.warn('getUserRole timed out after 5 seconds');
         reject(new Error('Timeout fetching user role'));
-      }, 10000);
+      }, 5000); // Reduced timeout to 5 seconds
     });
     
     // First try with standard select
@@ -231,9 +285,17 @@ export async function getUserRole(userId: string): Promise<'mentor' | 'mentee' |
             console.log('Fetched user role data via fetch API:', data);
             
             if (Array.isArray(data) && data.length > 0) {
-              return data[0].role;
+              const role = data[0].role;
+              // Cache the result in memory
+              userRoleCache[userId] = { role, timestamp: Date.now() };
+              // Cache in localStorage
+              safeSetItem(localStorageKey, JSON.stringify({ role, timestamp: Date.now() }));
+              return role;
             }
             
+            // Cache null result
+            userRoleCache[userId] = { role: null, timestamp: Date.now() };
+            safeSetItem(localStorageKey, JSON.stringify({ role: null, timestamp: Date.now() }));
             return null;
           } catch (fetchError) {
             console.error('Error with alternative fetch approach:', fetchError);
@@ -242,7 +304,13 @@ export async function getUserRole(userId: string): Promise<'mentor' | 'mentee' |
         }
         
         console.log('Fetched user role data:', userData);
-        return userData?.role || null;
+        const role = userData?.role || null;
+        
+        // Cache the result in memory
+        userRoleCache[userId] = { role, timestamp: Date.now() };
+        // Cache in localStorage
+        safeSetItem(localStorageKey, JSON.stringify({ role, timestamp: Date.now() }));
+        return role;
       } catch (innerError) {
         console.error('Inner exception in fetchRolePromise:', innerError);
         return null;
@@ -251,22 +319,32 @@ export async function getUserRole(userId: string): Promise<'mentor' | 'mentee' |
     
     // Race between the actual fetch and the timeout
     try {
-      return await Promise.race([fetchRolePromise, timeoutPromise]);
+      const result = await Promise.race([fetchRolePromise, timeoutPromise]);
+      return result;
     } catch (timeoutError) {
       console.error('Timed out fetching user role:', timeoutError);
-      // Instead of immediately returning null, try one more database attempt
-      try {
-        console.log('Making one final attempt to fetch role after timeout');
-        const { data } = await supabase
-          .from('users')
-          .select('role')
-          .eq('id', userId)
-          .maybeSingle();
-        return data?.role || null;
-      } catch (finalError) {
-        console.error('Final attempt failed:', finalError);
-        return null;
+      
+      // If we have a cached value (even if expired), use it as a fallback
+      if (cachedData) {
+        console.log('Using expired cached role after timeout:', cachedData.role);
+        return cachedData.role;
       }
+      
+      // Check localStorage again for any value
+      if (localStorageCache) {
+        try {
+          const parsed = JSON.parse(localStorageCache);
+          if (parsed && parsed.role) {
+            console.log('Using expired localStorage role after timeout:', parsed.role);
+            return parsed.role;
+          }
+        } catch (e) {
+          console.error('Error parsing expired cached role:', e);
+        }
+      }
+      
+      // Return null immediately instead of making another database call
+      return null;
     }
   } catch (error) {
     console.error('Exception fetching user role:', error);

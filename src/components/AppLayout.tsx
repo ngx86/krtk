@@ -154,15 +154,19 @@ export function AppLayout() {
     return null;
   }
 
-  if (!userRole && !inRequestFeedbackRoute) {
+  // CRITICAL FIX: Only redirect to role selection if auth is finished loading and there's definitely no role
+  // Skip this check for request-feedback routes which can work with a default role
+  if (!userRole && !inRequestFeedbackRoute && !authLoading) {
     console.log('AppLayout: No role, redirecting to role selection');
     navigate('/role-selection', { replace: true });
     return null;
   }
 
-  // Determine if we should render mentee routes
-  const showMenteeRoutes = isMentee(userRole) || inRequestFeedbackRoute;
-  // Determine if we should render mentor routes
+  // Determine if we should render mentee routes - INCLUDE routes when role is loading
+  // This allows navigation during role fetch timeouts
+  const showMenteeRoutes = isMentee(userRole) || inRequestFeedbackRoute || authLoading;
+  
+  // Determine if we should render mentor routes - more strict, require confirmed mentor role
   const showMentorRoutes = isMentor(userRole) && !inRequestFeedbackRoute;
   
   // Set a default role for components that require a non-null value

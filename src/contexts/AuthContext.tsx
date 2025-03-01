@@ -89,6 +89,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         'on host:', window.location.hostname,
         'main domain:', isMainDomain);
       
+      // CRITICAL FIX: Set authentication state based on session presence - don't wait for role
+      if (sessionActive) {
+        setIsAuthenticated(true);
+        
+        // If we don't have a user yet, set it now
+        if (!user && data.session?.user) {
+          setUser(data.session.user);
+          
+          // Start role fetch in background, but don't block auth flow
+          fetchUserRole(data.session.user.id).catch(err => 
+            console.error('Background role fetch error:', err));
+        }
+        
+        return true;
+      }
+      
       // If we're within the first 5 checks after login and session appears inactive,
       // but we previously thought it was active, do thorough validation
       if (!sessionActive && isAuthenticated && checkCount < 5) {
@@ -148,6 +164,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return isAuthenticated;
       }
       return false;
+    }
+  };
+
+  // Helper function to fetch user role without blocking auth flow
+  const fetchUserRole = async (userId: string): Promise<void> => {
+    if (!userId) return;
+    
+    try {
+      console.log('Background fetch of user role for:', userId);
+      const role = await authService.getUserRole(userId);
+      
+      if (role) {
+        console.log('Successfully fetched role in background:', role);
+        setUserRoleState(role);
+        setUser(prev => prev ? {...prev, userRole: role} : null);
+      } else {
+        console.warn('No role found for user in background fetch');
+      }
+    } catch (error) {
+      console.error('Error in background role fetch:', error);
+      // Continue without throwing - this is a background operation
     }
   };
 

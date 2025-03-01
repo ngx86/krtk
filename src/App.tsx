@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { RoleSelection } from './components/RoleSelection';
+import AuthCallback from './components/AuthCallback';
 
 function App() {
   return (
@@ -26,7 +27,7 @@ function App() {
                   <Route path="/login" element={<Login />} />
                   <Route path="/role-selection" element={<ProtectedRoleSelection />} />
                   <Route path="/dashboard/*" element={<ProtectedRoute />} />
-                  {/* Redirect /dashboard to /dashboard/ to ensure nested routes work */}
+                  <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="*" element={<Navigate to="/login" replace />} />
                 </Routes>
               </Router>

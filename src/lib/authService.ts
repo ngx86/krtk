@@ -1,65 +1,113 @@
 import { supabase, getRedirectUrl } from './supabaseClient';
-import { AuthError, AuthResponse, Session, User } from '@supabase/supabase-js';
+import { AuthError, AuthResponse } from '@supabase/supabase-js';
+
+// Define a constant for the auth callback path
+export const AUTH_CALLBACK_PATH = '/auth/callback';
 
 /**
  * Sign in with email and password
  */
-export async function signInWithPassword(email: string, password: string): Promise<AuthResponse> {
-  console.log('Signing in with redirect URL:', getRedirectUrl('/auth/callback'));
-  return supabase.auth.signInWithPassword({ 
-    email, 
-    password
-  });
-}
+export const signInWithPassword = async (email: string, password: string): Promise<AuthResponse> => {
+  try {
+    console.log('Signing in with password, redirect to:', getRedirectUrl(AUTH_CALLBACK_PATH));
+    
+    // Use the correct parameter structure for the current Supabase version
+    return await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+  } catch (error) {
+    console.error('Error signing in with password:', error);
+    throw error;
+  }
+};
 
 /**
  * Sign up with email and password
  */
-export async function signUp(email: string, password: string): Promise<AuthResponse> {
-  console.log('Signing up with redirect URL:', getRedirectUrl('/auth/callback'));
-  return supabase.auth.signUp({ 
-    email, 
-    password,
-    options: {
-      emailRedirectTo: getRedirectUrl('/auth/callback')
-    }
-  });
-}
+export const signUp = async (email: string, password: string): Promise<AuthResponse> => {
+  try {
+    console.log('Signing up, redirect to:', getRedirectUrl(AUTH_CALLBACK_PATH));
+    
+    // Use the correct parameter structure for the current Supabase version
+    return await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: getRedirectUrl(AUTH_CALLBACK_PATH)
+      }
+    });
+  } catch (error) {
+    console.error('Error signing up:', error);
+    throw error;
+  }
+};
 
 /**
- * Sign in with magic link (OTP)
+ * Sign in with OTP (magic link)
  */
-export async function signInWithOtp(email: string): Promise<{ error: AuthError | null }> {
-  console.log('Sending OTP with redirect URL:', getRedirectUrl('/auth/callback'));
-  return supabase.auth.signInWithOtp({ 
-    email,
-    options: {
-      emailRedirectTo: getRedirectUrl('/auth/callback')
-    }
-  });
-}
+export const signInWithOtp = async (email: string): Promise<AuthResponse> => {
+  try {
+    console.log('Signing in with OTP, redirect to:', getRedirectUrl(AUTH_CALLBACK_PATH));
+    
+    // Use the correct parameter structure for the current Supabase version
+    return await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: getRedirectUrl(AUTH_CALLBACK_PATH)
+      }
+    });
+  } catch (error) {
+    console.error('Error signing in with OTP:', error);
+    throw error;
+  }
+};
 
 /**
  * Sign out the current user
  */
-export async function signOut(): Promise<{ error: AuthError | null }> {
-  return supabase.auth.signOut();
-}
+export const signOut = async (): Promise<{ error: AuthError | null }> => {
+  try {
+    return await supabase.auth.signOut();
+  } catch (error) {
+    console.error('Error signing out:', error);
+    throw error;
+  }
+};
 
 /**
  * Get the current session
  */
-export async function getSession(): Promise<{ data: { session: Session | null } }> {
-  return supabase.auth.getSession();
-}
+export const getSession = async () => {
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      console.error('Error getting session:', error);
+      return { session: null, error };
+    }
+    return { session: data.session, error: null };
+  } catch (error) {
+    console.error('Exception getting session:', error);
+    return { session: null, error: error as AuthError };
+  }
+};
 
 /**
  * Get the current user
  */
-export async function getUser(): Promise<User | null> {
-  const { data } = await supabase.auth.getUser();
-  return data?.user || null;
-}
+export const getUser = async () => {
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      console.error('Error getting user:', error);
+      return { user: null, error };
+    }
+    return { user: data.user, error: null };
+  } catch (error) {
+    console.error('Exception getting user:', error);
+    return { user: null, error: error as AuthError };
+  }
+};
 
 // Function to store user role in database
 export async function storeUserRole(userId: string, email: string | undefined, role: 'mentor' | 'mentee'): Promise<void> {

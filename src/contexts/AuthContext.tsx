@@ -24,12 +24,27 @@ interface AuthContextType {
   setUserRole: (role: 'mentor' | 'mentee') => Promise<void>;
   refreshUserRole: () => Promise<void>;
   checkSessionActive: () => Promise<boolean>;
+  refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Session timeout for navigation within the app (10 minutes instead of 3)
-const SESSION_NAVIGATION_TIMEOUT = 10 * 60 * 1000;
+// Increase session timeout to be more resilient during navigation
+// Session timeout for navigation within the app (20 minutes instead of 10)
+const SESSION_NAVIGATION_TIMEOUT = 20 * 60 * 1000;
+
+// Get the current hostname for domain checks
+const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
+const isMainDomain = currentHostname === 'rvzn.app' || currentHostname === 'www.rvzn.app';
+const isLocalhost = currentHostname === 'localhost';
+
+// Log the current domain context
+if (typeof window !== 'undefined') {
+  console.log('Auth context initialized on domain:', currentHostname, 
+    isMainDomain ? '(main domain)' : 
+    isLocalhost ? '(localhost)' : 
+    '(other domain)');
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -38,21 +53,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [lastAuthCheckTime, setLastAuthCheckTime] = useState<number>(Date.now());
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-
+  const [sessionChecks, setSessionChecks] = useState<number>(0); 
+  
   // Function to check if session is active (for quick checks during navigation)
   const checkSessionActive = async (): Promise<boolean> => {
-    // If we've checked recently, return cached result to prevent flicker
-    // Use a longer timeout for Vercel preview environments
+    // If we're on the main domain, be more strict with session validation
+    // For other domains (like Vercel previews), be more lenient
     const isVercelPreview = typeof window !== 'undefined' && 
       window.location.hostname.includes('vercel.app');
     
-    // Use a longer timeout for Vercel preview environments
-    const timeoutDuration = isVercelPreview 
-      ? SESSION_NAVIGATION_TIMEOUT * 2 // Double the timeout for Vercel previews
-      : SESSION_NAVIGATION_TIMEOUT;
+    // Count how many times we've checked the session
+    setSessionChecks(prev => prev + 1);
+    const checkCount = sessionChecks + 1;
     
-    if (Date.now() - lastAuthCheckTime < timeoutDuration) {
-      console.log('Using cached auth state:', isAuthenticated);
+    // Use different timeout durations based on domain
+    const timeoutDuration = isMainDomain 
+      ? SESSION_NAVIGATION_TIMEOUT // Standard timeout for main domain
+      : (isVercelPreview ? SESSION_NAVIGATION_TIMEOUT * 2 : SESSION_NAVIGATION_TIMEOUT * 1.5); // Adjust timeout based on domain
+    
+    // If we've checked recently and have a valid session, use cached result
+    if (isAuthenticated && Date.now() - lastAuthCheckTime < timeoutDuration) {
+      console.log(`Using cached auth state (check #${checkCount}):`, isAuthenticated);
       return isAuthenticated;
     }
     
@@ -64,35 +85,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data } = await supabase.auth.getSession();
       const sessionActive = !!data.session?.user;
       
-      console.log('Session active check:', sessionActive, 'on host:', window.location.hostname);
+      console.log(`Session active check #${checkCount}:`, sessionActive, 
+        'on host:', window.location.hostname,
+        'main domain:', isMainDomain);
       
-      // If session is not active but we previously thought it was,
-      // do a second check after a short delay to handle network glitches
-      if (!sessionActive && isAuthenticated) {
-        console.log('Session appears inactive but was active before, retrying check');
-        // Longer delay for Vercel previews
-        const retryDelay = isVercelPreview ? 1500 : 800;
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      // If we're within the first 5 checks after login and session appears inactive,
+      // but we previously thought it was active, do thorough validation
+      if (!sessionActive && isAuthenticated && checkCount < 5) {
+        console.log(`Session appears inactive but was active before (check #${checkCount}), doing thorough check`);
         
-        // Retry the check
-        const { data: retryData } = await supabase.auth.getSession();
-        const retryResult = !!retryData.session?.user;
-        
-        console.log('Retry session check result:', retryResult);
-        setIsAuthenticated(retryResult);
-        return retryResult;
+        try {
+          // Check local storage for token
+          const hasLocalStorageToken = !!localStorage.getItem('supabase.auth.token');
+          console.log('  - Local storage token exists:', hasLocalStorageToken);
+          
+          // Check cookies
+          const hasAuthCookie = document.cookie.split(';').some(c => 
+            c.trim().startsWith('sb-') || c.trim().includes('supabase'));
+          console.log('  - Auth cookies exist:', hasAuthCookie);
+          
+          // If we have either token source and we're on the main domain, trust it for now
+          if ((hasLocalStorageToken || hasAuthCookie) && isMainDomain) {
+            console.log('  - Token sources exist, maintaining auth state temporarily');
+            return true;
+          }
+          
+          // Do a second session check after delay
+          const retryDelay = isMainDomain ? 1000 : 1500;
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          
+          // Retry the check
+          const { data: retryData } = await supabase.auth.getSession();
+          const retryResult = !!retryData.session?.user;
+          
+          console.log(`  - Retry session check result (check #${checkCount}):`, retryResult);
+          
+          if (retryResult) {
+            setIsAuthenticated(true);
+            return true;
+          }
+        } catch (retryError) {
+          console.error('Error during thorough session check:', retryError);
+        }
       }
       
-      // For Vercel previews, be more lenient with session validation
-      if (isVercelPreview && isAuthenticated) {
-        console.log('On Vercel preview with previous authentication, maintaining state');
+      // For non-main domains, be more lenient with session validation
+      if (!isMainDomain && isAuthenticated) {
+        console.log('On non-main domain with previous authentication, maintaining state');
         return true;
       }
       
+      // Update authentication state
       setIsAuthenticated(sessionActive);
       return sessionActive;
     } catch (error) {
       console.error('Error checking session status:', error);
+      
       // If there's an error but we previously thought the session was active,
       // give the benefit of the doubt to prevent false logouts
       if (isAuthenticated) {
@@ -124,6 +172,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Error refreshing user role:', error);
       // Continue without throwing since this is a non-critical operation
+    }
+  };
+
+  // Function to refresh the current session
+  const refreshSession = async (): Promise<void> => {
+    try {
+      console.log('Refreshing session');
+      
+      // Get current session
+      const { session: currentSession, error } = await authService.getSession();
+      
+      if (error) {
+        console.error('Error refreshing session:', error);
+        return;
+      }
+      
+      if (!currentSession) {
+        console.log('No session found during refresh');
+        setUser(null);
+        setUserRoleState(null);
+        setIsAuthenticated(false);
+        return;
+      }
+      
+      // Update the session state
+      setSession(currentSession);
+      setLastAuthCheckTime(Date.now());
+      setIsAuthenticated(true);
+      
+      // Get user data and role
+      try {
+        const currentUser = currentSession.user;
+        
+        // Get user role
+        const role = await authService.getUserRole(currentUser.id);
+        
+        setUserRoleState(role);
+        setUser({
+          ...currentUser,
+          userRole: role
+        });
+        
+        console.log('Session refreshed successfully');
+      } catch (error) {
+        console.error('Error getting user data during refresh:', error);
+      }
+    } catch (error) {
+      console.error('Error in refreshSession:', error);
     }
   };
 
@@ -194,8 +290,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         
         // Get the actual session from Supabase
-        const { data } = await authService.getSession();
-        const initialSession = data.session;
+        const { session: initialSession, error } = await authService.getSession();
+        
+        if (error) {
+          console.error('Error getting initial session:', error);
+        }
         
         if (!mounted) return;
         
@@ -385,6 +484,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUserRole,
         refreshUserRole,
         checkSessionActive,
+        refreshSession,
       }}
     >
       {children}

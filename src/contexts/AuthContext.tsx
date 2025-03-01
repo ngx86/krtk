@@ -42,7 +42,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Function to check if session is active (for quick checks during navigation)
   const checkSessionActive = async (): Promise<boolean> => {
     // If we've checked recently, return cached result to prevent flicker
-    if (Date.now() - lastAuthCheckTime < SESSION_NAVIGATION_TIMEOUT) {
+    // Use a longer timeout for Vercel preview environments
+    const isVercelPreview = typeof window !== 'undefined' && 
+      window.location.hostname.includes('vercel.app');
+    
+    // Use a longer timeout for Vercel preview environments
+    const timeoutDuration = isVercelPreview 
+      ? SESSION_NAVIGATION_TIMEOUT * 2 // Double the timeout for Vercel previews
+      : SESSION_NAVIGATION_TIMEOUT;
+    
+    if (Date.now() - lastAuthCheckTime < timeoutDuration) {
       console.log('Using cached auth state:', isAuthenticated);
       return isAuthenticated;
     }
@@ -55,14 +64,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data } = await supabase.auth.getSession();
       const sessionActive = !!data.session?.user;
       
-      console.log('Session active check:', sessionActive);
+      console.log('Session active check:', sessionActive, 'on host:', window.location.hostname);
       
       // If session is not active but we previously thought it was,
       // do a second check after a short delay to handle network glitches
       if (!sessionActive && isAuthenticated) {
         console.log('Session appears inactive but was active before, retrying check');
-        // Short delay before retrying
-        await new Promise(resolve => setTimeout(resolve, 800));
+        // Longer delay for Vercel previews
+        const retryDelay = isVercelPreview ? 1500 : 800;
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
         
         // Retry the check
         const { data: retryData } = await supabase.auth.getSession();
@@ -71,6 +81,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('Retry session check result:', retryResult);
         setIsAuthenticated(retryResult);
         return retryResult;
+      }
+      
+      // For Vercel previews, be more lenient with session validation
+      if (isVercelPreview && isAuthenticated) {
+        console.log('On Vercel preview with previous authentication, maintaining state');
+        return true;
       }
       
       setIsAuthenticated(sessionActive);

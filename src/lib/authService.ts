@@ -1,25 +1,42 @@
-import { supabase } from './supabaseClient';
+import { supabase, getRedirectUrl } from './supabaseClient';
 import { AuthError, AuthResponse, Session, User } from '@supabase/supabase-js';
 
 /**
  * Sign in with email and password
  */
 export async function signInWithPassword(email: string, password: string): Promise<AuthResponse> {
-  return supabase.auth.signInWithPassword({ email, password });
+  console.log('Signing in with redirect URL:', getRedirectUrl('/auth/callback'));
+  return supabase.auth.signInWithPassword({ 
+    email, 
+    password
+  });
 }
 
 /**
  * Sign up with email and password
  */
 export async function signUp(email: string, password: string): Promise<AuthResponse> {
-  return supabase.auth.signUp({ email, password });
+  console.log('Signing up with redirect URL:', getRedirectUrl('/auth/callback'));
+  return supabase.auth.signUp({ 
+    email, 
+    password,
+    options: {
+      emailRedirectTo: getRedirectUrl('/auth/callback')
+    }
+  });
 }
 
 /**
  * Sign in with magic link (OTP)
  */
 export async function signInWithOtp(email: string): Promise<{ error: AuthError | null }> {
-  return supabase.auth.signInWithOtp({ email });
+  console.log('Sending OTP with redirect URL:', getRedirectUrl('/auth/callback'));
+  return supabase.auth.signInWithOtp({ 
+    email,
+    options: {
+      emailRedirectTo: getRedirectUrl('/auth/callback')
+    }
+  });
 }
 
 /**

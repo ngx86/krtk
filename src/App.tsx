@@ -108,13 +108,24 @@ function ProtectedRoute() {
   const navigate = useNavigate();
   const location = useLocation();
   const [checkingStatus, setCheckingStatus] = useState(true);
+  const [sessionChecked, setSessionChecked] = useState(false);
 
   useEffect(() => {
     // Use a mounted flag to prevent state updates after unmount
     let mounted = true;
+    let initialCheckDone = false;
     
     const checkStatus = async () => {
       try {
+        // Skip redundant checks once we've validated the session
+        if (sessionChecked && isAuthenticated && user) {
+          console.log('ProtectedRoute: Session already checked and valid, skipping checks');
+          if (mounted && checkingStatus) {
+            setCheckingStatus(false);
+          }
+          return;
+        }
+        
         console.log('ProtectedRoute: Checking auth state', { 
           hasUser: !!user,
           userId: user?.id,
@@ -127,6 +138,10 @@ function ProtectedRoute() {
         // Wait for auth to finish loading
         if (loading) return;
         
+        // Prevent multiple initial checks
+        if (initialCheckDone) return;
+        initialCheckDone = true;
+        
         // For navigation to dashboard routes, do a quick session check first
         // This prevents unnecessary redirects during navigation
         if (location.pathname.includes('/dashboard')) {
@@ -134,28 +149,55 @@ function ProtectedRoute() {
           console.log('ProtectedRoute: Session active check:', sessionActive);
           
           if (!sessionActive) {
-            console.log('ProtectedRoute: Session not active, redirecting to login');
-            navigate('/login', { replace: true });
-            return;
+            // Add a small delay before redirecting to allow for potential auth state updates
+            console.log('ProtectedRoute: Session appears inactive, waiting briefly before redirect');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Recheck session after the delay
+            const recheckSession = await checkSessionActive();
+            if (!recheckSession) {
+              console.log('ProtectedRoute: Session confirmed inactive, redirecting to login');
+              if (mounted) {
+                navigate('/login', { replace: true });
+                return;
+              }
+            } else {
+              console.log('ProtectedRoute: Session reactivated during delay, continuing');
+            }
+          }
+          
+          if (mounted) {
+            setSessionChecked(true);
           }
         }
         
-        // Now do a full auth check
+        // Now do a full auth check for the initial page load
         if (!user || !isAuthenticated) {
-          console.log('ProtectedRoute: No user or not authenticated, redirecting to login');
-          navigate('/login', { replace: true });
-          return;
+          // Add a brief delay before redirecting
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Recheck authentication after delay
+          if (!user || !isAuthenticated) {
+            console.log('ProtectedRoute: No user or not authenticated after delay, redirecting to login');
+            if (mounted) {
+              navigate('/login', { replace: true });
+              return;
+            }
+          }
         }
         
         if (!userRole) {
           console.log('ProtectedRoute: User has no role, redirecting to role selection');
-          navigate('/role-selection', { replace: true });
-          return;
+          if (mounted) {
+            navigate('/role-selection', { replace: true });
+            return;
+          }
         }
         
         if (mounted) {
           console.log('ProtectedRoute: User authenticated and has role, rendering dashboard');
           setCheckingStatus(false);
+          setSessionChecked(true);
         }
       } catch (error) {
         console.error('ProtectedRoute: Error checking status', error);
@@ -170,7 +212,7 @@ function ProtectedRoute() {
     return () => {
       mounted = false;
     };
-  }, [user, userRole, loading, isAuthenticated, navigate, location, checkSessionActive]);
+  }, [user, userRole, loading, isAuthenticated, navigate, location, checkSessionActive, sessionChecked, checkingStatus]);
 
   if (loading || checkingStatus) {
     return (

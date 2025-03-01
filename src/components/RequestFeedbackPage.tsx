@@ -53,16 +53,45 @@ export function RequestFeedbackPage() {
   const validateSession = useCallback(async () => {
     try {
       console.log('RequestFeedbackPage: Validating session');
+      
+      // If auth state is explicitly true, trust it
+      if (isAuthenticated && authUser) {
+        console.log('RequestFeedbackPage: Already authenticated in memory');
+        setSessionValid(true);
+        return true;
+      }
+      
+      // Otherwise check with Supabase
       const isSessionActive = await checkSessionActive();
-      console.log('RequestFeedbackPage: Session active:', isSessionActive);
+      console.log('RequestFeedbackPage: Session active check:', isSessionActive);
+      
+      // If session check fails but we have user data, do one retry
+      if (!isSessionActive && authUser) {
+        console.log('RequestFeedbackPage: Session check failed but user exists, retrying');
+        // Short delay before retry
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Try one more time
+        const retryCheck = await checkSessionActive();
+        console.log('RequestFeedbackPage: Retry session check:', retryCheck);
+        setSessionValid(retryCheck);
+        return retryCheck;
+      }
+      
       setSessionValid(isSessionActive);
       return isSessionActive;
     } catch (err) {
       console.error('RequestFeedbackPage: Session check error', err);
+      // If we have a user despite the error, give benefit of the doubt
+      if (authUser) {
+        console.log('RequestFeedbackPage: Error during check but user exists, assuming valid');
+        setSessionValid(true);
+        return true;
+      }
       setSessionValid(false);
       return false;
     }
-  }, [checkSessionActive]);
+  }, [checkSessionActive, isAuthenticated, authUser]);
 
   // Check authentication on component mount - don't redirect immediately
   useEffect(() => {

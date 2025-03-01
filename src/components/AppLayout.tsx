@@ -61,7 +61,7 @@ export function AppLayout() {
     let mounted = true;
     
     const checkAuth = async () => {
-      // Only start checks if we're in the loading state
+      // Only start checks if we're not loading
       if (!authLoading && mounted) {
         console.log('AppLayout: Auth loading complete, checking user state', {
           hasUser: !!user,
@@ -70,42 +70,34 @@ export function AppLayout() {
           path: location.pathname
         });
         
-        // For internal navigation, just check if session still active
-        // This prevents repeated full auth checks during internal navigation
+        // For dashboard routes, assume the ProtectedRoute component has already checked auth
         if (location.pathname.includes('/dashboard')) {
-          // Skip the check for request-feedback routes since they handle their own auth
+          // Skip auth checks for request-feedback routes since they handle their own auth
           if (location.pathname.includes('/request-feedback')) {
             console.log('AppLayout: In request-feedback route, skipping auth check');
             setLocalLoading(false);
             return;
           }
           
-          // Use the quick session check for other routes
-          const sessionActive = await checkSessionActive();
-          
-          if (!sessionActive) {
-            console.warn('AppLayout: Session check failed, redirecting to login');
-            navigate('/login', { replace: true });
-            return;
+          // For all other dashboard routes, only do a session check if it appears we're not authenticated
+          if (!isAuthenticated || !user) {
+            console.log('AppLayout: Not authenticated, doing a quick session check');
+            // Use the quick session check
+            const sessionActive = await checkSessionActive();
+            
+            if (!sessionActive) {
+              console.warn('AppLayout: Session check failed, app will redirect shortly');
+              // Don't navigate here, let ProtectedRoute handle it
+              return;
+            }
           }
         }
         
-        // Wait a little bit before finalizing to ensure both contexts are ready
-        setTimeout(() => {
-          if (!mounted) return;
-          
+        // Always set loading to false to allow the UI to render
+        if (mounted) {
+          console.log('AppLayout: Completing loading process');
           setLocalLoading(false);
-          
-          if (!isAuthenticated || !user) {
-            console.warn('AppLayout: No user found after auth check, redirecting to login');
-            navigate('/login', { replace: true });
-          } else if (!userRole) {
-            console.warn('AppLayout: User found but no role, redirecting to role selection');
-            navigate('/role-selection', { replace: true });
-          } else {
-            console.log('AppLayout: User authenticated and has role, path:', location.pathname);
-          }
-        }, 200);
+        }
       }
     };
     
@@ -114,7 +106,7 @@ export function AppLayout() {
     return () => {
       mounted = false;
     };
-  }, [user, userRole, authLoading, isAuthenticated, navigate, location, checkSessionActive]);
+  }, [user, userRole, authLoading, isAuthenticated, location, checkSessionActive]);
 
   // Show loading state only during initial load, not during navigation
   if (authLoading && localLoading && !location.pathname.includes('/request-feedback')) {

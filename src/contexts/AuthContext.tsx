@@ -28,8 +28,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Session timeout for navigation within the app (3 minutes)
-const SESSION_NAVIGATION_TIMEOUT = 3 * 60 * 1000;
+// Session timeout for navigation within the app (10 minutes instead of 3)
+const SESSION_NAVIGATION_TIMEOUT = 10 * 60 * 1000;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -43,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const checkSessionActive = async (): Promise<boolean> => {
     // If we've checked recently, return cached result to prevent flicker
     if (Date.now() - lastAuthCheckTime < SESSION_NAVIGATION_TIMEOUT) {
+      console.log('Using cached auth state:', isAuthenticated);
       return isAuthenticated;
     }
     
@@ -55,11 +56,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const sessionActive = !!data.session?.user;
       
       console.log('Session active check:', sessionActive);
-      setIsAuthenticated(sessionActive);
       
+      // If session is not active but we previously thought it was,
+      // do a second check after a short delay to handle network glitches
+      if (!sessionActive && isAuthenticated) {
+        console.log('Session appears inactive but was active before, retrying check');
+        // Short delay before retrying
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        // Retry the check
+        const { data: retryData } = await supabase.auth.getSession();
+        const retryResult = !!retryData.session?.user;
+        
+        console.log('Retry session check result:', retryResult);
+        setIsAuthenticated(retryResult);
+        return retryResult;
+      }
+      
+      setIsAuthenticated(sessionActive);
       return sessionActive;
     } catch (error) {
       console.error('Error checking session status:', error);
+      // If there's an error but we previously thought the session was active,
+      // give the benefit of the doubt to prevent false logouts
+      if (isAuthenticated) {
+        console.log('Error during session check but was authenticated before, maintaining state');
+        return isAuthenticated;
+      }
       return false;
     }
   };

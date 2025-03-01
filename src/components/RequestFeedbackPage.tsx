@@ -98,98 +98,109 @@ export function RequestFeedbackPage() {
     // Only check auth after loading is complete
     if (!authLoading) {
       const checkAuth = async () => {
-        // If already authenticated, mark as checked and continue
-        if (isAuthenticated && authUser && appUser) {
-          console.log('RequestFeedbackPage: Already authenticated, continuing');
-          setAuthChecked(true);
-          setSessionValid(true);
-          return;
-        }
-        
-        // Not authenticated yet, check session
-        console.warn('RequestFeedbackPage: Not authenticated, checking session');
-        const validSession = await validateSession();
-        
-        if (!validSession) {
-          // If session isn't valid, delay redirect briefly to allow for potential auth state recovery
-          console.error('RequestFeedbackPage: Invalid session, preparing to redirect');
-          setError('You must be logged in to request feedback. Please wait while we confirm your authentication...');
+        try {
+          console.log('RequestFeedbackPage: Checking auth state');
           
-          // Add a short delay before redirecting
-          setTimeout(() => {
-            if (!isAuthenticated) {
-              console.error('RequestFeedbackPage: Still not authenticated after delay, redirecting to login');
-              navigate('/login', { replace: true });
-            } else {
-              console.log('RequestFeedbackPage: Authentication restored during delay, continuing');
-              setError(null);
-              setAuthChecked(true);
-              setSessionValid(true);
-            }
-          }, 1500);
-        } else {
-          // Session is valid
-          console.log('RequestFeedbackPage: Session valid, continuing');
+          // Add small delay to allow auth state to sync
+          await new Promise(resolve => setTimeout(resolve, 300));
+          
+          const isValid = await validateSession();
           setAuthChecked(true);
-          setSessionValid(true);
-          setError(null);
+          
+          // Give UI time to render before potentially redirecting
+          setTimeout(() => {
+            if (!isValid && !authUser) {
+              // Only redirect if definitely not logged in
+              console.warn('RequestFeedbackPage: No valid session, redirecting to login');
+              navigate('/login', { 
+                replace: true, 
+                state: { from: `/dashboard/request-feedback/${mentorId}` } 
+              });
+            }
+          }, 500);
+        } catch (err) {
+          console.error('RequestFeedbackPage: Auth check error', err);
+          setAuthChecked(true);
         }
       };
       
+      // Start auth check
       checkAuth();
     }
-  }, [authUser, appUser, authLoading, isAuthenticated, navigate, validateSession]);
+  }, [authLoading, authUser, validateSession, navigate, mentorId]);
 
-  // Fetch mentor data after auth check
+  // Load mentor data and persist auth state
   useEffect(() => {
-    if (authChecked && sessionValid && mentorId) {
-      console.log('Fetching mentor with ID:', mentorId);
-      fetchMentor();
-    } else if (authChecked && sessionValid && !mentorId) {
-      setError('No mentor ID provided');
-      console.error('RequestFeedbackPage: No mentor ID in URL params');
+    if (!mentorId) {
       setLoading(false);
+      setError('No mentor specified');
+      return;
     }
-  }, [mentorId, authChecked, sessionValid]);
-
-  async function fetchMentor() {
-    if (!mentorId) return;
     
-    try {
-      setLoading(true);
-      console.log('Fetching mentor data for ID:', mentorId);
-      
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, name, price_per_feedback')
-        .eq('id', mentorId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching mentor:', error);
-        throw error;
-      }
-      
-      if (!data) {
-        console.error('No mentor found with ID:', mentorId);
-        throw new Error('Mentor not found');
-      }
-      
-      if (!data.price_per_feedback) {
-        console.error('Mentor has no price set:', data);
-        throw new Error('This mentor has not set their price yet');
-      }
-      
-      console.log('Successfully fetched mentor:', data);
-      setMentor(data);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load mentor';
-      console.error('RequestFeedbackPage error:', errorMessage);
-      setError(errorMessage);
-    } finally {
+    // If we've already checked auth and session is not valid, don't fetch mentor
+    if (authChecked && sessionValid === false && !authUser) {
       setLoading(false);
+      return;
     }
-  }
+    
+    // Add a recovery mechanism for cases where auth state might be inconsistent
+    // This helps maintain auth state even if initial checks fail
+    const persistAuthState = async () => {
+      try {
+        if (!isAuthenticated || !authUser) {
+          const storedToken = localStorage.getItem('supabase.auth.token');
+          
+          if (storedToken) {
+            console.log('RequestFeedbackPage: Found auth token in storage, refreshing session');
+            await checkSessionActive();
+          }
+        }
+      } catch (err) {
+        console.error('RequestFeedbackPage: Error in auth state persistence', err);
+      }
+    };
+    
+    persistAuthState();
+    
+    const fetchMentor = async () => {
+      try {
+        setLoading(true);
+        console.log('Fetching mentor data for ID:', mentorId);
+        
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, name, price_per_feedback')
+          .eq('id', mentorId)
+          .single();
+
+        if (error) {
+          console.error('Error fetching mentor:', error);
+          throw error;
+        }
+        
+        if (!data) {
+          console.error('No mentor found with ID:', mentorId);
+          throw new Error('Mentor not found');
+        }
+        
+        if (!data.price_per_feedback) {
+          console.error('Mentor has no price set:', data);
+          throw new Error('This mentor has not set their price yet');
+        }
+        
+        console.log('Successfully fetched mentor:', data);
+        setMentor(data);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load mentor';
+        console.error('RequestFeedbackPage error:', errorMessage);
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchMentor();
+  }, [mentorId, authChecked, sessionValid, isAuthenticated, authUser, checkSessionActive]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

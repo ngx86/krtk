@@ -72,9 +72,19 @@ export function AppLayout() {
         
         // For dashboard routes, assume the ProtectedRoute component has already checked auth
         if (location.pathname.includes('/dashboard')) {
-          // Skip auth checks for request-feedback routes since they handle their own auth
+          // For request-feedback routes, perform a lightweight auth check instead of skipping entirely
           if (location.pathname.includes('/request-feedback')) {
-            console.log('AppLayout: In request-feedback route, skipping auth check');
+            console.log('AppLayout: In request-feedback route, performing lightweight auth check');
+            
+            // Only do the check if we appear to be logged out
+            if (!isAuthenticated || !user) {
+              const sessionActive = await checkSessionActive();
+              if (!sessionActive) {
+                console.warn('AppLayout: Session check failed in request-feedback route');
+                // If we're not authenticated, we'll handle the redirect later
+              }
+            }
+            
             setLocalLoading(false);
             return;
           }
@@ -124,13 +134,23 @@ export function AppLayout() {
     );
   }
 
-  // Skip these checks for request-feedback pages which handle their own auth
+  // Check auth status for request-feedback pages with more lenient rules
   const inRequestFeedbackRoute = location.pathname.includes('/request-feedback');
   
-  // Don't redirect if we're in a request-feedback route
+  // Don't redirect if we're in a request-feedback route and at least have a token in localStorage
+  // This helps prevent premature redirects while the auth state is being verified
+  const hasLocalStorageToken = typeof window !== 'undefined' && !!localStorage.getItem('supabase.auth.token');
+  
   if (!isAuthenticated && !user && !inRequestFeedbackRoute) {
     console.log('AppLayout: Not authenticated, redirecting to login');
     navigate('/login', { replace: true });
+    return null;
+  }
+  
+  // For request-feedback routes, only redirect if we definitely have no auth token
+  if (!isAuthenticated && !user && inRequestFeedbackRoute && !hasLocalStorageToken) {
+    console.log('AppLayout: Not authenticated in request-feedback route, redirecting to login');
+    navigate('/login', { replace: true, state: { from: location.pathname } });
     return null;
   }
 

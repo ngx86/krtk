@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabaseClient';
 
@@ -25,74 +25,105 @@ interface Notification {
   created_at: string;
 }
 
-interface AppUser {
+interface User {
   id: string;
-  role: 'mentee' | 'mentor';
-  credits: number | null;
+  email: string;
+  role: 'mentor' | 'mentee';
+  credits?: number;
 }
 
 interface AppContextType {
+  user: User | null;
   credits: number;
+  loading: boolean;
   notifications: Notification[];
   feedbackRequests: FeedbackRequest[];
-  user: AppUser | null;
   createFeedbackRequest: (data: Omit<FeedbackRequest, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   acceptFeedbackRequest: (requestId: number) => Promise<void>;
   completeFeedbackRequest: (requestId: number, feedback: string) => Promise<void>;
   declineFeedbackRequest: (requestId: number, reason: string) => Promise<void>;
   markNotificationAsRead: (notificationId: number) => Promise<void>;
   purchaseCredits: (amount: number) => Promise<void>;
+  setUserRole: (role: 'mentor' | 'mentee') => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const { user: authUser } = useAuth();
-  const [appUser, setAppUser] = useState<AppUser | null>(null);
+  const { user: authUser, session } = useAuth();
+  const [user, setUser] = useState<User | null>(null);
   const [credits, setCredits] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [feedbackRequests, setFeedbackRequests] = useState<FeedbackRequest[]>([]);
 
-  // Fetch initial data
   useEffect(() => {
-    if (authUser) {
-      // Convert auth user to app user
-      const fetchUserProfile = async () => {
-        const { data } = await supabase
+    console.log('AppContext: Auth state changed', { 
+      hasAuthUser: !!authUser,
+      hasSession: !!session,
+      authUserId: authUser?.id 
+    });
+
+    async function loadUserData() {
+      if (!authUser?.id) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const { data: profile, error } = await supabase
           .from('users')
           .select('*')
           .eq('id', authUser.id)
-          .single();
-          
-        if (data) {
-          setAppUser({
-            id: data.id,
-            role: data.role,
-            credits: data.credits
+          .maybeSingle();
+
+        console.log('AppContext: Loaded profile', { 
+          hasProfile: !!profile,
+          error,
+          userId: authUser.id 
+        });
+
+        if (error) throw error;
+
+        if (profile) {
+          setUser({
+            id: profile.id,
+            email: profile.email,
+            role: profile.role,
+            credits: profile.credits
           });
+          setCredits(profile.credits || 0);
+        } else {
+          setUser(null);
         }
-      };
-      
-      fetchUserProfile();
+      } catch (error) {
+        console.error('Error loading user data:', error);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [authUser]);
+
+    loadUserData();
+  }, [authUser, session]);
 
   useEffect(() => {
-    if (appUser) {
+    if (user) {
       fetchUserData();
       subscribeToUpdates();
     }
-  }, [appUser]);
+  }, [user]);
 
   async function fetchUserData() {
-    if (!appUser) return;
+    if (!user) return;
 
     // Fetch credits for mentees
-    if (appUser.role === 'mentee') {
+    if (user.role === 'mentee') {
       const { data: userData } = await supabase
         .from('users')
         .select('credits')
-        .eq('id', appUser.id)
+        .eq('id', user.id)
         .single();
       if (userData) {
         setCredits(userData.credits);
@@ -103,7 +134,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { data: notificationsData } = await supabase
       .from('notifications')
       .select('*')
-      .eq('user_id', appUser.id)
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
     if (notificationsData) {
       setNotifications(notificationsData);
@@ -113,7 +144,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { data: requestsData } = await supabase
       .from('feedback_requests')
       .select('*')
-      .or(`mentee_id.eq.${appUser.id},mentor_id.eq.${appUser.id}`)
+      .or(`mentee_id.eq.${user.id},mentor_id.eq.${user.id}`)
       .order('created_at', { ascending: false });
     if (requestsData) {
       setFeedbackRequests(requestsData);
@@ -121,7 +152,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   function subscribeToUpdates() {
-    if (!appUser) return;
+    if (!user) return;
 
     // Subscribe to notifications
     const notificationsSubscription = supabase
@@ -130,7 +161,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         event: '*',
         schema: 'public',
         table: 'notifications',
-        filter: `user_id=eq.${appUser.id}`,
+        filter: `user_id=eq.${user.id}`,
       }, payload => {
         if (payload.eventType === 'INSERT') {
           setNotifications(prev => [payload.new as Notification, ...prev]);
@@ -145,7 +176,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         event: '*',
         schema: 'public',
         table: 'feedback_requests',
-        filter: `mentee_id=eq.${appUser.id}`,
+        filter: `mentee_id=eq.${user.id}`,
       }, payload => {
         if (payload.eventType === 'UPDATE') {
           setFeedbackRequests(prev => 
@@ -166,11 +197,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Context methods
   async function createFeedbackRequest(data: Omit<FeedbackRequest, 'id' | 'created_at' | 'updated_at'>) {
-    if (!appUser) return;
+    if (!user) return;
 
     const { error } = await supabase.from('feedback_requests').insert([{
       ...data,
-      mentee_id: appUser.id,
+      mentee_id: user.id,
       status: 'pending',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -181,13 +212,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function acceptFeedbackRequest(requestId: number) {
-    if (!appUser) return;
+    if (!user) return;
 
     const { error } = await supabase
       .from('feedback_requests')
       .update({
         status: 'accepted',
-        mentor_id: appUser.id,
+        mentor_id: user.id,
         updated_at: new Date().toISOString(),
       })
       .eq('id', requestId);
@@ -197,7 +228,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function completeFeedbackRequest(requestId: number, feedback: string) {
-    if (!appUser) return;
+    if (!user) return;
 
     const { error } = await supabase
       .from('feedback_requests')
@@ -213,7 +244,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function declineFeedbackRequest(requestId: number, reason: string) {
-    if (!appUser) return;
+    if (!user) return;
 
     const { error } = await supabase
       .from('feedback_requests')
@@ -229,7 +260,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function markNotificationAsRead(notificationId: number) {
-    if (!appUser) return;
+    if (!user) return;
 
     const { error } = await supabase
       .from('notifications')
@@ -241,30 +272,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function purchaseCredits(amount: number) {
-    if (!appUser) return;
+    if (!user) return;
 
     const { error } = await supabase
       .from('users')
       .update({ 
-        credits: (appUser.credits || 0) + amount 
+        credits: (user.credits || 0) + amount 
       })
-      .eq('id', appUser.id);
+      .eq('id', user.id);
 
     if (error) throw error;
     await fetchUserData();
   }
 
+  const setUserRole = (role: 'mentor' | 'mentee') => {
+    if (user) {
+      setUser({ ...user, role });
+    }
+  };
+
   const value = {
+    user,
     credits,
+    loading,
     notifications,
     feedbackRequests,
-    user: appUser,
     createFeedbackRequest,
     acceptFeedbackRequest,
     completeFeedbackRequest,
     declineFeedbackRequest,
     markNotificationAsRead,
     purchaseCredits,
+    setUserRole
   };
 
   return (

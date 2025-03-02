@@ -18,16 +18,20 @@ import { Breadcrumbs } from './Breadcrumbs';
 import { useApp } from '../contexts/AppContext';
 
 export function AppLayout() {
-  const [role, setRole] = useState<'mentee' | 'mentor'>('mentee');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user } = useApp();
+  const { user, credits, setUserRole } = useApp();
+  const role = user?.role || 'mentee';
+
+  const handleRoleChange = (newRole: 'mentee' | 'mentor') => {
+    setUserRole(newRole);
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <Header 
         role={role}
-        credits={user?.credits || 0}
-        setRole={setRole}
+        credits={credits}
+        setRole={handleRoleChange}
         onMenuClick={() => setSidebarOpen(true)}
       />
       <div className="flex">

@@ -1,14 +1,58 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
+import { debugAuthState } from '../lib/supabaseClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CreditCard, Users, Clock } from "lucide-react"
 
 export function MenteeDashboard() {
   const { feedbackRequests, credits } = useApp();
+  const { refreshSession } = useAuth();
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed'>('all');
   const [sortBy, setSortBy] = useState<'date' | 'status'>('date');
+
+  // Function to handle Request Feedback navigation
+  const handleRequestFeedbackClick = async () => {
+    // Debug information for request feedback navigation
+    console.log('AUTH DEBUG: Clicking Request Feedback link');
+    
+    // CRITICAL: Refresh the session before navigation
+    try {
+      console.log('🔐 Refreshing session before navigation...');
+      await refreshSession();
+      
+      // Debug auth state for troubleshooting
+      try {
+        await debugAuthState();
+      } catch (debugErr) {
+        console.error('Debug error:', debugErr);
+      }
+      
+      console.log('AUTH DEBUG: Session refreshed successfully, proceeding with navigation');
+      
+      // Store navigation info in sessionStorage
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('lastNavigation', JSON.stringify({
+          from: window.location.pathname,
+          to: '/dashboard/request-feedback',
+          time: new Date().toISOString()
+        }));
+      }
+      
+      // Use a direct href with a delay to ensure the session is fully refreshed
+      setTimeout(() => {
+        window.location.href = `${window.location.origin}/dashboard/request-feedback`;
+      }, 100);
+      
+    } catch (err) {
+      console.error('Error during navigation preparation:', err);
+      
+      // Even if refresh fails, still try to navigate
+      window.location.href = `${window.location.origin}/dashboard/request-feedback`;
+    }
+  };
 
   const filteredRequests = feedbackRequests
     .filter(request => statusFilter === 'all' || request.status === statusFilter)
@@ -57,11 +101,13 @@ export function MenteeDashboard() {
 
       {/* Quick Actions */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Link to="/request-feedback">
-          <Button className="w-full" size="lg">
-            Request New Feedback
-          </Button>
-        </Link>
+        <Button 
+          className="w-full" 
+          size="lg"
+          onClick={handleRequestFeedbackClick}
+        >
+          Request New Feedback
+        </Button>
         <Link to="/mentors">
           <Button variant="secondary" className="w-full" size="lg">
             Find a Mentor

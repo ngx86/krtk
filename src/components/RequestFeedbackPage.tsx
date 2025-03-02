@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, debugAuthState } from '../lib/supabaseClient';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,76 +22,111 @@ export function RequestFeedbackPage() {
   const { mentorId } = useParams<{ mentorId: string }>();
   const navigate = useNavigate();
   const { user: appUser, credits } = useApp();
-  const { user: authUser, loading: authLoading, isAuthenticated, checkSessionActive } = useAuth();
+  const { user: authUser, loading: authLoading, isAuthenticated, refreshSession } = useAuth();
   const [mentor, setMentor] = useState<Mentor | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [sessionValid, setSessionValid] = useState<boolean | null>(null);
+  const [debugInfo, setDebugInfo] = useState<Record<string, any>>({});
   const [formData, setFormData] = useState({
     link: '',
     description: '',
   });
 
+  // Add specific auth debugging on component mount
+  useEffect(() => {
+    console.log('🔎 RequestFeedbackPage mounted, checking auth state...');
+    debugAuthState();
+    
+    // Also check auth state when user clicks anywhere on the page
+    const handleClick = () => {
+      console.log('🖱️ User interaction, re-checking auth state...');
+      debugAuthState();
+    };
+    
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
+
+  // Function to capture debug information
+  const captureDebugInfo = useCallback(() => {
+    const info = {
+      page: 'RequestFeedbackPage',
+      url: window.location.href,
+      time: new Date().toISOString(),
+      hasUser: !!authUser,
+      userId: authUser?.id ?? 'none',
+      isAuthenticated,
+      sessionValid,
+      hasLocalStorageToken: !!localStorage.getItem('supabase.auth.token'),
+      cookies: document.cookie,
+      lastNavigation: JSON.parse(sessionStorage.getItem('lastNavigation') || '{}'),
+      hasLastNavTime: !!sessionStorage.getItem('lastNavigation')
+    };
+    
+    console.log('AUTH DEBUG: RequestFeedbackPage state', info);
+    setDebugInfo(prev => ({ ...prev, ...info }));
+    return info;
+  }, [authUser, isAuthenticated, sessionValid]);
+
   // Log component state for debugging
   useEffect(() => {
-    console.log('RequestFeedbackPage state:', {
-      mentorId,
-      hasAuthUser: !!authUser,
-      hasAppUser: !!appUser,
-      authLoading,
-      loading,
-      error,
-      authChecked,
-      isAuthenticated,
-      sessionValid
-    });
-  }, [mentorId, authUser, appUser, authLoading, loading, error, authChecked, isAuthenticated, sessionValid]);
+    captureDebugInfo();
+  }, [mentorId, authUser, appUser, authLoading, loading, error, authChecked, isAuthenticated, sessionValid, captureDebugInfo]);
 
   // Check session status without redirecting immediately
   const validateSession = useCallback(async () => {
     try {
-      console.log('RequestFeedbackPage: Validating session');
+      console.log('AUTH DEBUG: RequestFeedbackPage validating session');
       
       // If auth state is explicitly true, trust it
       if (isAuthenticated && authUser) {
-        console.log('RequestFeedbackPage: Already authenticated in memory');
+        console.log('AUTH DEBUG: RequestFeedbackPage already authenticated in memory');
         setSessionValid(true);
         return true;
       }
       
-      // Otherwise check with Supabase
-      const isSessionActive = await checkSessionActive();
-      console.log('RequestFeedbackPage: Session active check:', isSessionActive);
+      // Otherwise refresh the session with Supabase
+      console.log('AUTH DEBUG: RequestFeedbackPage refreshing session');
       
-      // If session check fails but we have user data, do one retry
-      if (!isSessionActive && authUser) {
-        console.log('RequestFeedbackPage: Session check failed but user exists, retrying');
-        // Short delay before retry
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      try {
+        await refreshSession();
         
-        // Try one more time
-        const retryCheck = await checkSessionActive();
-        console.log('RequestFeedbackPage: Retry session check:', retryCheck);
-        setSessionValid(retryCheck);
-        return retryCheck;
+        // After refresh, check if we have a user
+        const isSessionValid = !!authUser;
+        console.log('AUTH DEBUG: RequestFeedbackPage session refresh result:', { isSessionValid, hasUser: !!authUser });
+        
+        setSessionValid(isSessionValid);
+        return isSessionValid;
+      } catch (refreshError) {
+        console.error('AUTH DEBUG: RequestFeedbackPage session refresh error:', refreshError);
+        
+        // If session refresh fails but we still have a user, give benefit of doubt
+        if (authUser) {
+          console.log('AUTH DEBUG: RequestFeedbackPage has user despite refresh error');
+          setSessionValid(true);
+          return true;
+        }
+        
+        setSessionValid(false);
+        return false;
       }
-      
-      setSessionValid(isSessionActive);
-      return isSessionActive;
     } catch (err) {
-      console.error('RequestFeedbackPage: Session check error', err);
+      console.error('AUTH DEBUG: RequestFeedbackPage session validation error', err);
+      
       // If we have a user despite the error, give benefit of the doubt
       if (authUser) {
-        console.log('RequestFeedbackPage: Error during check but user exists, assuming valid');
+        console.log('AUTH DEBUG: RequestFeedbackPage has user despite validation error');
         setSessionValid(true);
         return true;
       }
+      
       setSessionValid(false);
       return false;
     }
-  }, [checkSessionActive, isAuthenticated, authUser]);
+  }, [refreshSession, isAuthenticated, authUser]);
 
   // Check authentication on component mount - don't redirect immediately
   useEffect(() => {
@@ -99,7 +134,8 @@ export function RequestFeedbackPage() {
     if (!authLoading) {
       const checkAuth = async () => {
         try {
-          console.log('RequestFeedbackPage: Checking auth state');
+          console.log('AUTH DEBUG: RequestFeedbackPage checking auth state');
+          captureDebugInfo();
           
           // Add small delay to allow auth state to sync
           await new Promise(resolve => setTimeout(resolve, 300));
@@ -107,19 +143,21 @@ export function RequestFeedbackPage() {
           const isValid = await validateSession();
           setAuthChecked(true);
           
+          captureDebugInfo();
+          
           // Give UI time to render before potentially redirecting
           setTimeout(() => {
             if (!isValid && !authUser) {
               // Only redirect if definitely not logged in
-              console.warn('RequestFeedbackPage: No valid session, redirecting to login');
+              console.warn('AUTH DEBUG: RequestFeedbackPage no valid session, redirecting to login');
               navigate('/login', { 
                 replace: true, 
-                state: { from: `/dashboard/request-feedback/${mentorId}` } 
+                state: { from: `/request-feedback/${mentorId}` } 
               });
             }
           }, 500);
         } catch (err) {
-          console.error('RequestFeedbackPage: Auth check error', err);
+          console.error('AUTH DEBUG: RequestFeedbackPage auth check error', err);
           setAuthChecked(true);
         }
       };
@@ -127,7 +165,7 @@ export function RequestFeedbackPage() {
       // Start auth check
       checkAuth();
     }
-  }, [authLoading, authUser, validateSession, navigate, mentorId]);
+  }, [authLoading, authUser, validateSession, navigate, mentorId, captureDebugInfo]);
 
   // Load mentor data and persist auth state
   useEffect(() => {
@@ -151,12 +189,13 @@ export function RequestFeedbackPage() {
           const storedToken = localStorage.getItem('supabase.auth.token');
           
           if (storedToken) {
-            console.log('RequestFeedbackPage: Found auth token in storage, refreshing session');
-            await checkSessionActive();
+            console.log('AUTH DEBUG: RequestFeedbackPage found token in storage, refreshing session');
+            await refreshSession();
+            captureDebugInfo();
           }
         }
       } catch (err) {
-        console.error('RequestFeedbackPage: Error in auth state persistence', err);
+        console.error('AUTH DEBUG: RequestFeedbackPage error in auth state persistence', err);
       }
     };
     
@@ -200,7 +239,7 @@ export function RequestFeedbackPage() {
     };
     
     fetchMentor();
-  }, [mentorId, authChecked, sessionValid, isAuthenticated, authUser, checkSessionActive]);
+  }, [mentorId, authChecked, sessionValid, isAuthenticated, authUser, refreshSession, captureDebugInfo]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -271,14 +310,20 @@ export function RequestFeedbackPage() {
     }
   }
 
-  // Display loading spinner during auth check
+  // Render loading state
   if (authLoading || (loading && !error) || sessionValid === null) {
     return (
       <div className="flex flex-col items-center justify-center p-8">
         <LoadingSpinner fullScreen={false} />
-        <span className="mt-4 text-center">
-          {!authChecked ? 'Verifying your authentication...' : 'Loading mentor data...'}
-        </span>
+        <span className="mt-4 text-gray-700 dark:text-gray-300">Loading...</span>
+        
+        {/* Debug panel */}
+        <div className="mt-8 p-4 max-w-lg w-full bg-slate-100 dark:bg-slate-800 rounded text-xs">
+          <p className="font-bold">Request Feedback Debug Info:</p>
+          <pre className="whitespace-pre-wrap overflow-auto max-h-80">
+            {JSON.stringify(debugInfo, null, 2)}
+          </pre>
+        </div>
       </div>
     );
   }

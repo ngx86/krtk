@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import * as authService from '../lib/authService';
@@ -242,56 +242,94 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Function to refresh the current session
   const refreshSession = async (): Promise<void> => {
     try {
-      console.log('Refreshing session');
+      console.log('AUTH DEBUG: refreshSession called');
       
-      // Attempt to get local token first to avoid unnecessary redirects
-      const hasLocalToken = typeof window !== 'undefined' && 
-        !!localStorage.getItem('supabase.auth.token');
+      // First try to explicitly refresh the session
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      
+      if (!refreshError && refreshData.session) {
+        console.log('AUTH DEBUG: Session refreshed successfully with refreshSession()');
         
-      if (hasLocalToken) {
-        console.log('Found local token during refresh, setting authenticated temporarily');
-        // Set authenticated first to prevent flickering
+        // Update authentication state
+        setSession(refreshData.session);
+        setUser(refreshData.session.user);
         setIsAuthenticated(true);
-      }
-      
-      // Get current session
-      const { session: currentSession, error } = await authService.getSession();
-      
-      if (error) {
-        console.error('Error refreshing session:', error);
-        return;
-      }
-      
-      if (!currentSession) {
-        console.log('No session found during refresh');
+        setLastAuthCheckTime(Date.now());
         
-        // IMPORTANT: Only clear auth state if we're certain there's no token
-        // This gives preference to keeping users logged in during transient states
-        if (!hasLocalToken) {
-          setUser(null);
-          setUserRoleState(null);
-          setIsAuthenticated(false);
-        } else {
-          console.log('No session but token exists - maintaining auth state');
+        // Store session timestamp in localStorage for recovery
+        try {
+          localStorage.setItem('last_session_timestamp', Date.now().toString());
+        } catch (err) {
+          console.error('Error storing session timestamp:', err);
         }
+        
+        // Fetch role in background if needed
+        if (!userRole) {
+          fetchUserRoleInBackground(refreshData.session.user.id);
+        }
+        
+        setLoading(false);
         return;
       }
       
-      // Update auth state with session info
-      setSession(currentSession);
+      if (refreshError) {
+        console.warn('AUTH DEBUG: Could not refresh session, falling back to getSession()', refreshError);
+      }
+      
+      // Fall back to getting the current session
+      const sessionResponse = await authService.getSession();
+      
+      if (sessionResponse.error) {
+        console.error('AUTH DEBUG: Error getting session:', sessionResponse.error);
+        
+        // Try to recover from local storage if we have evidence of a recent session
+        const lastSessionTimestamp = localStorage.getItem('last_session_timestamp');
+        const hasLocalStorageToken = !!localStorage.getItem('supabase.auth.token');
+        
+        if (lastSessionTimestamp && hasLocalStorageToken) {
+          const timeSinceLastSession = Date.now() - parseInt(lastSessionTimestamp, 10);
+          
+          // If we had a session recently (within 1 hour), consider the user still authenticated
+          if (timeSinceLastSession < 60 * 60 * 1000) {
+            console.log('AUTH DEBUG: Recent session detected, keeping authentication state');
+            setIsAuthenticated(true);
+            setLastAuthCheckTime(Date.now());
+            setLoading(false);
+            return;
+          }
+        }
+        
+        throw sessionResponse.error;
+      }
+      
+      const session = sessionResponse.session;
+      
+      console.log('AUTH DEBUG: refreshSession results', { 
+        hasSession: !!session,
+        userId: session?.user.id, 
+        expiresAt: session?.expires_at
+      });
+      
+      // Update state
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsAuthenticated(!!session);
       setLastAuthCheckTime(Date.now());
-      setIsAuthenticated(true);
       
-      // Update user info
-      const currentUser = currentSession.user;
-      setUser(currentUser);
+      // Store session timestamp in localStorage for recovery if we have a session
+      if (session) {
+        try {
+          localStorage.setItem('last_session_timestamp', Date.now().toString());
+        } catch (err) {
+          console.error('Error storing session timestamp:', err);
+        }
+      }
       
-      // Fetch role in background
-      fetchUserRoleInBackground(currentUser.id);
-      
-      console.log('Session refreshed successfully');
+      setLoading(false);
     } catch (error) {
-      console.error('Error in refreshSession:', error);
+      console.error('AUTH DEBUG: Fatal error in refreshSession:', error);
+      setLoading(false);
+      throw error;
     }
   };
   
@@ -343,6 +381,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsAuthenticated(true);
           setUser(currentUser);
           
+          // Store session timestamp in localStorage for recovery
+          try {
+            localStorage.setItem('last_session_timestamp', Date.now().toString());
+          } catch (err) {
+            console.error('Error storing session timestamp:', err);
+          }
+          
           // Fetch role in background - won't block authentication
           fetchUserRoleInBackground(currentUser.id);
           
@@ -360,55 +405,130 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     // Get initial session and hydrate auth state
-    const initializeSession = async () => {
+    const initializeSession = useCallback(async () => {
+      if (!mounted) return;
+      
+      console.log('AUTH DEBUG: initializeSession called');
+      setLoading(true);
+      
       try {
-        // Attempt to get session from localstorage first
-        const storedSession = localStorage.getItem('supabase.auth.token');
-        if (storedSession) {
-          console.log('Found stored session data');
+        // Try to recover from hash if present
+        if (window.location.hash && window.location.hash.includes('access_token')) {
+          console.log('AUTH DEBUG: Found hash params, handling auth callback');
+          // Handle the URL params manually since getSessionFromUrl isn't available
+          try {
+            // This method handles the URL with the hash
+            const { data, error } = await supabase.auth.getSession();
+            if (error) {
+              console.error('Error getting session after URL hash detected:', error);
+            } else if (data?.session) {
+              console.log('Successfully retrieved session after URL hash detection');
+            }
+          } catch (hashError) {
+            console.error('Error handling hash params:', hashError);
+          }
         }
         
-        // Get the actual session from Supabase
-        const { session: initialSession, error } = await authService.getSession();
+        // Get the current session
+        const sessionResponse = await authService.getSession();
         
-        if (error) {
-          console.error('Error getting initial session:', error);
+        // Safe check for session expiry
+        const expiresIn = sessionResponse.session && 
+          sessionResponse.session.expires_at !== undefined ? 
+          new Date(sessionResponse.session.expires_at * 1000) : 
+          'none';
+        
+        console.log('AUTH DEBUG: initializeSession data', { 
+          success: !sessionResponse.error, 
+          hasSession: !!sessionResponse.session,
+          expiresIn,
+          localStorageToken: !!localStorage.getItem('supabase.auth.token'),
+          cookies: document.cookie
+        });
+        
+        if (sessionResponse.error) {
+          console.error('AUTH DEBUG: Error initializing session:', sessionResponse.error);
+          
+          // Try session recovery if we have local evidence of a recent session
+          const lastSessionTimestamp = localStorage.getItem('last_session_timestamp');
+          const hasLocalStorageToken = !!localStorage.getItem('supabase.auth.token');
+          
+          if (lastSessionTimestamp && hasLocalStorageToken) {
+            const timeSinceLastSession = Date.now() - parseInt(lastSessionTimestamp, 10);
+            
+            // If we had a session recently (within 4 hours), try refreshing
+            if (timeSinceLastSession < 4 * 60 * 60 * 1000) {
+              console.log('AUTH DEBUG: Recent session detected, attempting recovery');
+              try {
+                const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+                
+                if (!refreshError && refreshData.session) {
+                  console.log('AUTH DEBUG: Successfully recovered session');
+                  setSession(refreshData.session);
+                  setUser(refreshData.session.user);
+                  setIsAuthenticated(true);
+                  
+                  // Fetch role in background
+                  fetchUserRoleInBackground(refreshData.session.user.id);
+                  setLoading(false);
+                  return;
+                } else {
+                  console.error('AUTH DEBUG: Session recovery failed:', refreshError);
+                }
+              } catch (refreshErr) {
+                console.error('AUTH DEBUG: Exception during session recovery:', refreshErr);
+              }
+            }
+          }
+          
+          setLoading(false);
+          return;
         }
         
-        if (!mounted) return;
+        // Update state with session data
+        setSession(sessionResponse.session);
+        setUser(sessionResponse.session?.user ?? null);
+        setIsAuthenticated(!!sessionResponse.session);
         
-        // Always update session state immediately
-        setSession(initialSession);
-        setLastAuthCheckTime(Date.now());
-        
-        if (initialSession?.user) {
-          const initialUser = initialSession.user;
-          console.log('Initial user found:', initialUser.id);
+        // If we have a session, try to get user role (with debugging)
+        if (sessionResponse.session) {
+          console.log('AUTH DEBUG: Getting user role');
           
-          // Set authenticated immediately - don't wait for role
-          setIsAuthenticated(true);
-          setUser(initialUser);
+          // Import from supabaseClient.ts
+          const { isVercelPreview } = await import('../lib/supabaseClient');
+          const timeoutDuration = isVercelPreview ? 30000 : 5000; // Longer timeout for Vercel preview
           
-          // Fetch role in background - won't block authentication
-          fetchUserRoleInBackground(initialUser.id);
+          const rolePromise = authService.getUserRole(sessionResponse.session.user.id);
+          
+          // Set a timeout to continue without role if it takes too long
+          const timeoutPromise = new Promise<UserRole>((resolve) => {
+            setTimeout(() => {
+              console.log('AUTH DEBUG: Role fetch timed out!');
+              resolve(null);
+            }, timeoutDuration);
+          });
+          
+          // Race between role fetch and timeout
+          const role = await Promise.race([rolePromise, timeoutPromise]);
+          
+          console.log('AUTH DEBUG: User role fetched:', { role, userId: sessionResponse.session.user.id });
+          setUserRoleState(role);
         } else {
-          console.log('No initial session found');
-          
-          setUser(null);
+          console.log('AUTH DEBUG: No session found, clearing role');
           setUserRoleState(null);
-          setIsAuthenticated(false);
         }
-      } catch (error) {
-        console.error('Error initializing session:', error);
+      } catch (err) {
+        console.error('AUTH DEBUG: Unexpected error in initializeSession:', err);
       } finally {
-        if (mounted) setLoading(false);
+        setLoading(false);
       }
-    };
+    }, []);
     
-    // Initialize session
+    // Always initialize session on mount
     initializeSession();
 
     return () => {
+      console.log('AUTH DEBUG: Cleaning up auth state listener');
       mounted = false;
       subscription?.unsubscribe();
     };

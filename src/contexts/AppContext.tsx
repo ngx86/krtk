@@ -1,6 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import { useAuth } from './AuthContext';
-import { supabase } from '../lib/supabaseClient';
+import { createContext, useContext, useState } from 'react';
 
 interface FeedbackRequest {
   id: number;
@@ -45,251 +43,256 @@ interface AppContextType {
   markNotificationAsRead: (notificationId: number) => Promise<void>;
   purchaseCredits: (amount: number) => Promise<void>;
   setUserRole: (role: 'mentor' | 'mentee') => void;
+  switchUser: (userId: string) => void;
+  users: User[];
+  mentorProfiles: MentorProfile[];
+  updateMentorProfile: (userId: string, updates: Partial<MentorProfile>) => void;
+  getAvailableMentors: () => MentorProfile[];
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Mock users data
+const mockUsers: User[] = [
+  {
+    id: 'mentor-1',
+    email: 'mentor1@example.com',
+    role: 'mentor',
+    credits: 0,
+  },
+  {
+    id: 'mentor-2',
+    email: 'mentor2@example.com',
+    role: 'mentor',
+    credits: 0,
+  },
+  {
+    id: 'mentee-1',
+    email: 'mentee1@example.com',
+    role: 'mentee',
+    credits: 100,
+  },
+  {
+    id: 'mentee-2',
+    email: 'mentee2@example.com',
+    role: 'mentee',
+    credits: 50,
+  },
+];
+
+// Mock mentor profiles
+export interface MentorProfile {
+  userId: string;
+  name: string;
+  bio: string;
+  expertise: string[];
+  languages: string[];
+  price_per_feedback: number;
+  availability: boolean;
+  rating: number;
+  total_reviews: number;
+  image_url?: string;
+  job_title?: string;
+  company?: string;
+  years_of_experience?: number;
+}
+
+const mockMentorProfiles: MentorProfile[] = [
+  {
+    userId: 'mentor-1',
+    name: 'Alex Thompson',
+    bio: 'Senior UX Designer with 8 years of experience',
+    expertise: ['UI Design', 'User Research', 'Design Systems'],
+    languages: ['English', 'Spanish'],
+    price_per_feedback: 25,
+    availability: true,
+    rating: 4.8,
+    total_reviews: 124,
+    image_url: 'https://api.dicebear.com/7.x/avatars/svg?seed=mentor1',
+    job_title: 'Senior UX Designer',
+    company: 'Design Co',
+    years_of_experience: 8
+  },
+  {
+    userId: 'mentor-2',
+    name: 'Sarah Chen',
+    bio: 'Product Designer specializing in mobile apps',
+    expertise: ['Mobile Design', 'Interaction Design', 'Prototyping'],
+    languages: ['English', 'Mandarin'],
+    price_per_feedback: 20,
+    availability: true,
+    rating: 4.9,
+    total_reviews: 89,
+    image_url: 'https://api.dicebear.com/7.x/avatars/svg?seed=mentor2',
+    job_title: 'Product Designer',
+    company: 'Tech Mobile',
+    years_of_experience: 6
+  }
+];
+
+// Mock notifications
+const mockNotifications: Notification[] = [
+  {
+    id: 1,
+    user_id: 'mentee-1',
+    message: 'Welcome to the platform!',
+    type: 'system',
+    read: false,
+    created_at: new Date().toISOString()
+  }
+];
+
+// Mock feedback requests
+const mockFeedbackRequests: FeedbackRequest[] = [
+  {
+    id: 1,
+    mentee_id: 'mentee-1',
+    mentor_id: 'mentor-1',
+    description: 'Please review my latest design',
+    link: 'https://figma.com/example',
+    status: 'pending',
+    urgency: 'medium',
+    credits_cost: 15,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+];
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const { user: authUser, session } = useAuth();
-  const [user, setUser] = useState<User | null>(null);
-  const [credits, setCredits] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [feedbackRequests, setFeedbackRequests] = useState<FeedbackRequest[]>([]);
+  const [currentUserId, setCurrentUserId] = useState('mentee-1');
+  const [users] = useState(mockUsers);
+  const [mentorProfiles, setMentorProfiles] = useState(mockMentorProfiles);
+  const [user, setUser] = useState<User | null>(mockUsers.find(u => u.id === currentUserId) || null);
+  const [credits, setCredits] = useState(user?.credits || 0);
+  const [loading, setLoading] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>(
+    mockNotifications.filter(n => n.user_id === currentUserId)
+  );
+  const [feedbackRequests, setFeedbackRequests] = useState<FeedbackRequest[]>(
+    mockFeedbackRequests.filter(
+      fr => fr.mentee_id === currentUserId || fr.mentor_id === currentUserId
+    )
+  );
 
-  useEffect(() => {
-    console.log('AppContext: Auth state changed', { 
-      hasAuthUser: !!authUser,
-      hasSession: !!session,
-      authUserId: authUser?.id 
-    });
-
-    async function loadUserData() {
-      if (!authUser?.id) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const { data: profile, error } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', authUser.id)
-          .maybeSingle();
-
-        console.log('AppContext: Loaded profile', { 
-          hasProfile: !!profile,
-          error,
-          userId: authUser.id 
-        });
-
-        if (error) throw error;
-
-        if (profile) {
-          setUser({
-            id: profile.id,
-            email: profile.email,
-            role: profile.role,
-            credits: profile.credits
-          });
-          setCredits(profile.credits || 0);
-        } else {
-          setUser(null);
-        }
-      } catch (error) {
-        console.error('Error loading user data:', error);
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadUserData();
-  }, [authUser, session]);
-
-  useEffect(() => {
-    if (user) {
-      fetchUserData();
-      subscribeToUpdates();
-    }
-  }, [user]);
-
-  async function fetchUserData() {
-    if (!user) return;
-
-    // Fetch credits for mentees
-    if (user.role === 'mentee') {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('credits')
-        .eq('id', user.id)
-        .single();
-      if (userData) {
-        setCredits(userData.credits);
-      }
-    }
-
-    // Fetch notifications
-    const { data: notificationsData } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    if (notificationsData) {
-      setNotifications(notificationsData);
-    }
-
-    // Fetch feedback requests
-    const { data: requestsData } = await supabase
-      .from('feedback_requests')
-      .select('*')
-      .or(`mentee_id.eq.${user.id},mentor_id.eq.${user.id}`)
-      .order('created_at', { ascending: false });
-    if (requestsData) {
-      setFeedbackRequests(requestsData);
+  // Function to switch between test users
+  function switchUser(userId: string) {
+    const newUser = users.find(u => u.id === userId);
+    if (newUser) {
+      setCurrentUserId(userId);
+      setUser(newUser);
+      setCredits(newUser.credits || 0);
+      setNotifications(mockNotifications.filter(n => n.user_id === userId));
+      setFeedbackRequests(
+        mockFeedbackRequests.filter(
+          fr => fr.mentee_id === userId || fr.mentor_id === userId
+        )
+      );
     }
   }
 
-  function subscribeToUpdates() {
-    if (!user) return;
-
-    // Subscribe to notifications
-    const notificationsSubscription = supabase
-      .channel('notifications')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'notifications',
-        filter: `user_id=eq.${user.id}`,
-      }, payload => {
-        if (payload.eventType === 'INSERT') {
-          setNotifications(prev => [payload.new as Notification, ...prev]);
-        }
-      })
-      .subscribe();
-
-    // Subscribe to feedback requests
-    const requestsSubscription = supabase
-      .channel('feedback_requests')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'feedback_requests',
-        filter: `mentee_id=eq.${user.id}`,
-      }, payload => {
-        if (payload.eventType === 'UPDATE') {
-          setFeedbackRequests(prev => 
-            prev.map(req => req.id === (payload.new as FeedbackRequest).id ? 
-              payload.new as FeedbackRequest : 
-              req
-            )
-          );
-        }
-      })
-      .subscribe();
-
-    return () => {
-      notificationsSubscription.unsubscribe();
-      requestsSubscription.unsubscribe();
-    };
+  // Function to update mentor profile
+  function updateMentorProfile(userId: string, updates: Partial<MentorProfile>) {
+    setMentorProfiles(prev =>
+      prev.map(profile =>
+        profile.userId === userId ? { ...profile, ...updates } : profile
+      )
+    );
   }
 
-  // Context methods
+  // Get all available mentors
+  function getAvailableMentors(): MentorProfile[] {
+    return mentorProfiles.filter(profile => profile.availability);
+  }
+
   async function createFeedbackRequest(data: Omit<FeedbackRequest, 'id' | 'created_at' | 'updated_at'>) {
-    if (!user) return;
-
-    const { error } = await supabase.from('feedback_requests').insert([{
+    const newRequest: FeedbackRequest = {
+      id: feedbackRequests.length + 1,
       ...data,
-      mentee_id: user.id,
-      status: 'pending',
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }]);
+      updated_at: new Date().toISOString()
+    };
+    setFeedbackRequests(prev => [...prev, newRequest]);
+    setCredits(prev => prev - data.credits_cost);
 
-    if (error) throw error;
-    await fetchUserData();
+    // Create notification for mentee
+    setNotifications(prev => [{
+      id: prev.length + 1,
+      user_id: data.mentee_id,
+      message: `Your feedback request has been submitted successfully`,
+      type: 'feedback',
+      read: false,
+      created_at: new Date().toISOString()
+    }, ...prev]);
+
+    // If request is for a specific mentor, create notification for them
+    if (data.mentor_id) {
+      setNotifications(prev => [{
+        id: prev.length + 2,
+        user_id: data.mentor_id!,
+        message: `New feedback request from ${users.find(u => u.id === data.mentee_id)?.name || 'a mentee'}`,
+        type: 'feedback',
+        read: false,
+        created_at: new Date().toISOString()
+      }, ...prev]);
+    }
   }
 
   async function acceptFeedbackRequest(requestId: number) {
-    if (!user) return;
-
-    const { error } = await supabase
-      .from('feedback_requests')
-      .update({
-        status: 'accepted',
-        mentor_id: user.id,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', requestId);
-
-    if (error) throw error;
-    await fetchUserData();
+    setFeedbackRequests(prev =>
+      prev.map(req =>
+        req.id === requestId
+          ? { ...req, status: 'accepted', updated_at: new Date().toISOString() }
+          : req
+      )
+    );
   }
 
   async function completeFeedbackRequest(requestId: number, feedback: string) {
-    if (!user) return;
-
-    const { error } = await supabase
-      .from('feedback_requests')
-      .update({
-        status: 'completed',
-        feedback,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', requestId);
-
-    if (error) throw error;
-    await fetchUserData();
+    setFeedbackRequests(prev =>
+      prev.map(req =>
+        req.id === requestId
+          ? { ...req, status: 'completed', feedback, updated_at: new Date().toISOString() }
+          : req
+      )
+    );
   }
 
   async function declineFeedbackRequest(requestId: number, reason: string) {
-    if (!user) return;
-
-    const { error } = await supabase
-      .from('feedback_requests')
-      .update({
-        status: 'declined',
-        feedback: reason,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', requestId);
-
-    if (error) throw error;
-    await fetchUserData();
+    setFeedbackRequests(prev =>
+      prev.map(req =>
+        req.id === requestId
+          ? { ...req, status: 'declined', feedback: reason, updated_at: new Date().toISOString() }
+          : req
+      )
+    );
   }
 
   async function markNotificationAsRead(notificationId: number) {
-    if (!user) return;
-
-    const { error } = await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('id', notificationId);
-
-    if (error) throw error;
-    await fetchUserData();
+    setNotifications(prev =>
+      prev.map(notif =>
+        notif.id === notificationId ? { ...notif, read: true } : notif
+      )
+    );
   }
 
   async function purchaseCredits(amount: number) {
-    if (!user) return;
-
-    const { error } = await supabase
-      .from('users')
-      .update({ 
-        credits: (user.credits || 0) + amount 
-      })
-      .eq('id', user.id);
-
-    if (error) throw error;
-    await fetchUserData();
+    setCredits(prev => prev + amount);
+    setNotifications(prev => [
+      {
+        id: prev.length + 1,
+        user_id: user?.id || '',
+        message: `Successfully purchased ${amount} credits`,
+        type: 'credits',
+        read: false,
+        created_at: new Date().toISOString()
+      },
+      ...prev
+    ]);
   }
 
-  const setUserRole = (role: 'mentor' | 'mentee') => {
-    if (user) {
-      setUser({ ...user, role });
-    }
-  };
+  function setUserRole(role: 'mentor' | 'mentee') {
+    setUser(prev => prev ? { ...prev, role } : null);
+  }
 
   const value = {
     user,
@@ -303,16 +306,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     declineFeedbackRequest,
     markNotificationAsRead,
     purchaseCredits,
-    setUserRole
+    setUserRole,
+    switchUser,
+    users,
+    mentorProfiles,
+    updateMentorProfile,
+    getAvailableMentors,
   };
 
-  return (
-    <AppContext.Provider value={value}>
-      {children}
-    </AppContext.Provider>
-  );
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
+// Export the useApp hook from the same file
 export function useApp() {
   const context = useContext(AppContext);
   if (context === undefined) {

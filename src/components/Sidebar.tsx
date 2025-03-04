@@ -28,6 +28,7 @@ const sidebarLinks = {
   ],
   mentor: [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dashboard/requests", label: "Feedback Requests", icon: Users },
     { href: "/earnings", label: "Earnings", icon: DollarSign },
     { href: "/feedback-history", label: "Feedback History", icon: History },
   ],

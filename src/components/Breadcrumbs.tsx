@@ -14,6 +14,7 @@ export function Breadcrumbs() {
     earnings: 'Earnings',
     ratings: 'Ratings',
     'feedback-history': 'Feedback History',
+    requests: 'Feedback Requests',
   };
 
   return (
